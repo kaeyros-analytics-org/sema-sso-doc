@@ -1,0 +1,195 @@
+      <!-- ════════════════════════════════════ NEW APP -->
+      <section class="section" id="newapp">
+        <div class="page-header">
+          <h1 data-i18n="page.newapp.title">New App Integration Guide</h1>
+          <p data-i18n="page.newapp.desc">Step-by-step: connect a brand new app to Sema SSO in under 30 minutes.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.newapp.fe.title">For a New Frontend (Next.js)</div>
+          <div class="flow-steps">
+            <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.fe.1.title">Set environment variables</div>
+              <div class="flow-step-desc" data-i18n="newapp.fe.1.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>.env.local</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>NEXT_PUBLIC_SEMA_SSO_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3003  # your backend port</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.fe.2.title">Copy AuthProvider + useAuth from an existing app</div>
+              <div class="flow-step-desc" data-i18n="newapp.fe.2.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>Files to copy</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>cp sema-core-frontend/providers/AuthProvider.tsx  your-app/providers/
+cp sema-core-frontend/hooks/useAuth.ts            your-app/hooks/
+cp sema-core-frontend/lib/httpClient.ts           your-app/lib/</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.fe.3.title">Wrap root layout with &lt;AuthProvider&gt;</div>
+              <div class="flow-step-desc" data-i18n="newapp.fe.3.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>app/layout.tsx</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>import { AuthProvider } from '../providers/AuthProvider';
+
+export default function RootLayout({ children }) {
+  return (
+    &lt;html&gt;&lt;body&gt;
+      &lt;AuthProvider&gt;
+        {children}
+      &lt;/AuthProvider&gt;
+    &lt;/body&gt;&lt;/html&gt;
+  );
+}</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.fe.4.title">Create login page — receive token from gateway</div>
+              <div class="flow-step-desc" data-i18n="newapp.fe.4.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>app/login/page.tsx</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>'use client';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const params = useSearchParams();
+
+  useEffect(() => {
+    // Gateway returns here with ?token=&lt;jwt&gt;
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('sema_token', token);
+      router.replace('/dashboard');
+      return;
+    }
+    // Redirect to SSO — tell it to come back here with token
+    const sso = process.env.NEXT_PUBLIC_SEMA_SSO_URL;
+    const uri = encodeURIComponent(window.location.origin + '/login');
+    window.location.href = `${sso}/auth/login?redirect_uri=${uri}&callback_mode=direct`;
+  }, []);
+
+  return &lt;p&gt;Redirecting…&lt;/p&gt;;
+}</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.fe.5.title">Use httpClient for all API calls</div>
+              <div class="flow-step-desc" data-i18n="newapp.fe.5.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>Any component</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>import { httpClient } from '../lib/httpClient';
+
+// Bearer token attached automatically, 401 triggers refresh automatically
+const { data } = await httpClient.get('/api/your-endpoint', {
+  headers: { 'x-credential-id': selectedCredentialId }
+});</pre>
+              </div>
+            </div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.newapp.be.title">For a New Backend (NestJS)</div>
+          <div class="flow-steps">
+            <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.be.1.title">Add environment variables</div>
+              <div class="flow-step-desc" data-i18n="newapp.be.1.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>.env</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>SERVICE_ID=my-new-service              # unique name for this service
+GATEWAY_TOKEN_SECRET=                  # copy from gateway .env
+GATEWAY_SHARED_SECRET=                 # copy from gateway .env
+SSO_API_GATEWAY_URL=http://localhost:3001
+REDIS_HOST=localhost
+REDIS_PORT=6379
+DATABASE_URL=postgresql://postgres:1234567@localhost:5432/my-service</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.be.2.title">Install dependencies</div>
+              <div class="flow-step-desc" data-i18n="newapp.be.2.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>npm</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>npm install @nestjs/jwt @nestjs/passport passport passport-jwt \
+            @nestjs/config ioredis @liaoliaots/nestjs-redis</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.be.3.title">Copy JwtStrategy + GatewayMiddleware</div>
+              <div class="flow-step-desc" data-i18n="newapp.be.3.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>Files to copy</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>cp sema-core-service/src/auth/jwt.strategy.ts      your-service/src/auth/
+cp sema-core-service/src/auth/jwt-auth.guard.ts    your-service/src/auth/
+cp sema-core-service/src/common/middleware/gateway.middleware.ts \
+   your-service/src/common/middleware/</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.be.4.title">Register in AppModule</div>
+              <div class="flow-step-desc" data-i18n="newapp.be.4.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>app.module.ts</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    JwtModule.register({ secret: process.env.GATEWAY_TOKEN_SECRET }),
+    PassportModule,
+  ],
+  providers: [JwtStrategy],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(GatewayMiddleware).forRoutes('*');
+  }
+}</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.be.5.title">Protect routes with @UseGuards(JwtAuthGuard)</div>
+              <div class="flow-step-desc" data-i18n="newapp.be.5.desc"></div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>any.controller.ts</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>@Get('data')
+@UseGuards(JwtAuthGuard)
+async getData(@Headers('x-credential-id') credId: string, @Req() req) {
+  // req.user = JWT payload (sub, email, roles, jti)
+  // credId = scopes request to one company's data
+  return this.service.getData(credId);
+}</pre>
+              </div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">6</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="newapp.be.6.title">Add your service to the gateway route files</div>
+              <div class="flow-step-desc" data-i18n="newapp.be.6.desc">The gateway will return 404 for every request until your service is declared in all four route files. Open <code>SEMA-SSO-api-gateway</code> and add one entry in each file.</div>
+              <div class="code-block mt-8">
+                <div class="code-header"><span class="code-lang"><span class="dot"></span>routes.yml (local) + .github/routes/routes-dev/stg/prod.yml</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                <pre>  # Add this block in each of the 4 route files
+  # (adjust target URL per environment)
+  - path: "my-new-service"        # must equal SERVICE_ID in your .env
+    target: "http://localhost:3005"
+    rewritePath: true</pre>
+              </div>
+            </div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.newapp.checklist.title">Quick Validation Checklist</div>
+          <ul class="checklist">
+            <li><span data-i18n="newapp.check.1"></span></li>
+            <li><span data-i18n="newapp.check.2"></span></li>
+            <li><span data-i18n="newapp.check.3"></span></li>
+            <li><span data-i18n="newapp.check.4"></span></li>
+            <li><span data-i18n="newapp.check.5"></span></li>
+            <li><span data-i18n="newapp.check.6"></span></li>
+            <li><span data-i18n="newapp.check.7"></span></li>
+            <li><span data-i18n="newapp.check.8"></span></li>
+            <li><span data-i18n="newapp.check.9"></span></li>
+          </ul>
+        </div>
+      </section>

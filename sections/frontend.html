@@ -1,0 +1,290 @@
+      <!-- ════════════════════════════════════ FRONTEND -->
+      <section class="section" id="frontend">
+        <div class="page-header">
+          <h1 data-i18n="page.frontend.title">Frontend Apps</h1>
+          <p data-i18n="page.frontend.desc">All four Next.js apps follow the same pattern.</p>
+        </div>
+
+        <div class="sub-tabs">
+          <button class="sub-tab" data-target="core" data-i18n="tab.core">sema-core</button>
+          <button class="sub-tab" data-target="order" data-i18n="tab.order">sema-order</button>
+          <button class="sub-tab" data-target="sso" data-i18n="tab.sso">sema-sso</button>
+          <button class="sub-tab" data-target="bulk" data-i18n="tab.bulk">sema-bulk</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.fe.common.title">Common Frontend Pattern</div>
+          <div class="card-grid">
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="fe.env.label">Environment</div>
+              <div class="env-list">
+                <div class="env-item" style="padding:6px 10px;">
+                  <span class="env-key">NEXT_PUBLIC_SEMA_SSO_URL</span>
+                  <span class="env-val">Gateway base URL (e.g. <code>http://localhost:3001</code>)</span>
+                </div>
+                <div class="env-item" style="padding:6px 10px;">
+                  <span class="env-key">NEXT_PUBLIC_API_URL</span>
+                  <span class="env-val">Backend service base URL</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="fe.providers.label">Providers</div>
+              <p style="font-size:.875rem;" data-i18n="fe.providers.desc"></p>
+            </div>
+          </div>
+
+          <p class="code-desc" data-i18n="fe.code.middleware.desc"></p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>middleware.ts — Next.js route protection</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>// middleware.ts (project root — runs before every page request)
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+const PUBLIC_PATHS = ['/login', '/api/auth'];
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Allow public paths through
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Check for token in localStorage is not possible in middleware
+  // so we rely on AuthProvider to redirect unauthenticated users
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};</pre>
+          </div>
+
+          <p class="code-desc" data-i18n="fe.code.authprovider.desc"></p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>providers/AuthProvider.tsx — where useAuth is declared</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>'use client';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { httpClient } from '../lib/httpClient';
+
+interface AuthUser { sub: string; email: string; name: string; roles: string[]; }
+interface AuthCtx  { user: AuthUser | null; token: string | null; isLoading: boolean; logout: () => void; }
+
+const AuthContext = createContext&lt;AuthCtx&gt;({ user: null, token: null, isLoading: true, logout: () => {} });
+
+// ── useAuth hook (declared here, used anywhere in the app) ──
+export function useAuth() { return useContext(AuthContext); }
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser]       = useState&lt;AuthUser | null&gt;(null);
+  const [token, setToken]     = useState&lt;string | null&gt;(null);
+  const [isLoading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('sema_token');
+    if (!stored) { setLoading(false); return; }
+    httpClient.get('/auth/session')
+      .then(({ data }) => { setUser(data.user); setToken(data.token); })
+      .catch(() => localStorage.removeItem('sema_token'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function logout() {
+    localStorage.removeItem('sema_token');
+    setUser(null); setToken(null);
+    window.location.href = `${process.env.NEXT_PUBLIC_SEMA_SSO_URL}/auth/logout`;
+  }
+
+  return (
+    &lt;AuthContext.Provider value={{ user, token, isLoading, logout }}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+}</pre>
+          </div>
+
+          <p class="code-desc" data-i18n="fe.code.httpclient.desc"></p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>lib/httpClient.ts — auto-attach token + refresh on 401</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>import axios from 'axios';
+
+export const httpClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+});
+
+// Attach Bearer token from localStorage on every request
+httpClient.interceptors.request.use(config => {
+  const token = localStorage.getItem('sema_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// On 401 → try to refresh token, then retry original request once
+httpClient.interceptors.response.use(
+  res => res,
+  async err => {
+    const original = err.config;
+    if (err.response?.status === 401 && !original._retry) {
+      original._retry = true;
+      const { data } = await axios.post(
+        `${process.env.NEXT_PUBLIC_SEMA_SSO_URL}/auth/refresh-token`,
+        {}, { withCredentials: true }
+      );
+      localStorage.setItem('sema_token', data.token);
+      original.headers.Authorization = `Bearer ${data.token}`;
+      return httpClient(original);
+    }
+    return Promise.reject(err);
+  }
+);</pre>
+          </div>
+
+          <p class="code-desc" data-i18n="fe.code.login.desc"></p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>app/login/page.tsx — redirect to SSO + receive token back</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>'use client';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const params = useSearchParams();
+
+  useEffect(() => {
+    // Step 1: Gateway returns here with ?token=&lt;jwt&gt; after login
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('sema_token', token);
+      router.replace('/dashboard');  // clean the token from the URL
+      return;
+    }
+
+    // Step 2: No token → redirect to SSO gateway login
+    // redirect_uri tells the gateway where to send the user back
+    // callback_mode=direct tells it to append ?token= to the redirect_uri
+    const ssoUrl   = process.env.NEXT_PUBLIC_SEMA_SSO_URL;
+    const redirect = encodeURIComponent(`${window.location.origin}/login`);
+    window.location.href = `${ssoUrl}/auth/login?redirect_uri=${redirect}&callback_mode=direct`;
+  }, []);
+
+  return &lt;p&gt;Redirecting to login…&lt;/p&gt;;
+}</pre>
+          </div>
+        </div>
+
+        <div class="sub-content" data-id="core">
+          <div class="card">
+            <div class="card-title">sema-core-frontend</div>
+            <div class="grid-2">
+              <div>
+                <h4 class="mb-8" data-i18n="fe.postlogin">Post-login redirect</h4>
+                <p data-i18n="fe.core.postlogin"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.backend">Backend target</h4>
+                <p data-i18n="fe.core.backend"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.credential">Credential scoping</h4>
+                <p data-i18n="fe.core.credential"></p>
+              </div>
+              <div>
+                <h4 class="mb-8" data-i18n="fe.keyfiles">Key auth files</h4>
+                <div class="env-list">
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">providers/AuthProvider.tsx</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">hooks/useAuth.ts</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">lib/httpClient.ts</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">app/[locale]/login/page.tsx</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-content" data-id="order">
+          <div class="card">
+            <div class="card-title">sema-order-frontend</div>
+            <div class="grid-2">
+              <div>
+                <h4 class="mb-8" data-i18n="fe.postlogin">Post-login redirect</h4>
+                <p data-i18n="fe.order.postlogin"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.backend">Backend target</h4>
+                <p data-i18n="fe.order.backend"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.same">Same pattern</h4>
+                <p data-i18n="fe.order.same"></p>
+              </div>
+              <div>
+                <h4 class="mb-8" data-i18n="fe.keyfiles">Key auth files</h4>
+                <div class="env-list">
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">providers/AuthProvider.tsx</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">hooks/useAuth.ts</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">lib/httpClient.ts</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">app/login/page.tsx</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-content" data-id="sso">
+          <div class="card">
+            <div class="card-title">sema-sso-frontend</div>
+            <div class="info-box tip mb-16">
+              <span class="icon-box"><i data-lucide="lightbulb"></i></span>
+              <p data-i18n="fe.sso.special"></p>
+            </div>
+            <div class="grid-2">
+              <div>
+                <h4 class="mb-8" data-i18n="fe.postlogin">Post-login redirect</h4>
+                <p data-i18n="fe.sso.postlogin"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.backend">Backend target</h4>
+                <p data-i18n="fe.sso.backend"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.sso.facebook.label">Facebook OAuth</h4>
+                <p data-i18n="fe.sso.facebook"></p>
+              </div>
+              <div>
+                <h4 class="mb-8" data-i18n="fe.keyfiles">Key auth files</h4>
+                <div class="env-list">
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">providers/AuthProvider.tsx</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">app/onboarding/page.tsx</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">lib/httpClient.ts</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-content" data-id="bulk">
+          <div class="card">
+            <div class="card-title">sema-bulk-frontend</div>
+            <div class="grid-2">
+              <div>
+                <h4 class="mb-8" data-i18n="fe.postlogin">Post-login redirect</h4>
+                <p data-i18n="fe.bulk.postlogin"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.backend">Backend target</h4>
+                <p data-i18n="fe.bulk.backend"></p>
+                <h4 class="mt-16 mb-8" data-i18n="fe.bulk.auto.label">Auto-provisioning</h4>
+                <p data-i18n="fe.bulk.auto.desc"></p>
+              </div>
+              <div>
+                <h4 class="mb-8" data-i18n="fe.keyfiles">Key auth files</h4>
+                <div class="env-list">
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">providers/AuthProvider.tsx</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">hooks/useAuth.ts</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">lib/httpClient.ts</span></div>
+                  <div class="env-item" style="padding:6px 10px;"><span class="env-key" style="min-width:0;font-size:.75rem;">app/login/page.tsx</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>

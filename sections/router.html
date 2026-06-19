@@ -1,0 +1,73 @@
+      <!-- ════════════════════════════════════ ROUTER -->
+      <section class="section" id="router">
+        <div class="page-header">
+          <h1 data-i18n="page.router.title">sema-router (Go)</h1>
+          <p data-i18n="page.router.desc">The WhatsApp webhook processor.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.router.auth.title">How sema-router authenticates</div>
+          <div class="info-box info mb-16">
+            <span class="icon-box"><i data-lucide="info"></i></span>
+            <p data-i18n="router.auth.info"></p>
+          </div>
+          <div class="flow-steps">
+            <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="router.1.title">Meta webhook arrives</div>
+              <div class="flow-step-desc" data-i18n="router.1.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="router.2.title">Extract phone_number_id</div>
+              <div class="flow-step-desc" data-i18n="router.2.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="router.3.title">Fetch credential from SSO API</div>
+              <div class="flow-step-desc" data-i18n="router.3.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="router.4.title">Process message + publish to Kafka</div>
+              <div class="flow-step-desc" data-i18n="router.4.desc"></div>
+            </div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.router.env.title">Key Environment Variables</div>
+          <div class="env-list">
+            <div class="env-item">
+              <span class="env-key">SSOAPIBaseURL</span>
+              <span class="env-val">SSO API Gateway URL for credential fetching</span>
+              <span class="env-req" data-i18n="req">REQUIRED</span>
+            </div>
+            <div class="env-item">
+              <span class="env-key">KAFKA_BROKERS</span>
+              <span class="env-val">Comma-separated list of Kafka brokers</span>
+              <span class="env-req" data-i18n="req">REQUIRED</span>
+            </div>
+            <div class="env-item">
+              <span class="env-key">WHATSAPP_VERIFY_TOKEN</span>
+              <span class="env-val">Meta webhook verification token</span>
+              <span class="env-req" data-i18n="req">REQUIRED</span>
+            </div>
+            <div class="env-item">
+              <span class="env-key">OPENAI_API_KEY</span>
+              <span class="env-val">OpenAI key for AI scenario items</span>
+              <span class="env-req" data-i18n="req">REQUIRED</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.router.kafka.title">Kafka Topics Published</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th data-i18n="th.topic">Topic</th><th data-i18n="th.consumer">Consumer</th><th data-i18n="th.purpose">Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code class="cell-code">CHAT_INCOMING_MESSAGE_TOPIC</code></td><td>sema-core-service</td><td data-i18n="kafka.chat.desc">Bot/user message to persist and emit via WebSocket</td></tr>
+                <tr><td><code class="cell-code">CHAT_NEW_CONVERSATION_TOPIC</code></td><td>sema-core-service</td><td data-i18n="kafka.conv.desc">New conversation started</td></tr>
+                <tr><td><code class="cell-code">CHAT_TYPING_INDICATOR_TOPIC</code></td><td>sema-core-service</td><td data-i18n="kafka.typing.desc">WhatsApp typing indicator event</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>

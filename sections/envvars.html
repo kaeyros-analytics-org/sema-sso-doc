@@ -1,0 +1,70 @@
+      <!-- ════════════════════════════════════ ENV VARS -->
+      <section class="section" id="envvars">
+        <div class="page-header">
+          <h1 data-i18n="page.envvars.title">Environment Variables Reference</h1>
+          <p data-i18n="page.envvars.desc">Complete list of all required environment variables per service.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.env.gateway.title">SSO API Gateway (.env)</div>
+          <button class="env-copy-all" data-service="gateway"><i data-lucide="copy"></i><span data-i18n="env.copy.all">Copy all</span></button>
+          <div class="env-list" data-service="gateway">
+            <div class="env-item" data-key="NODE_ENV" data-val="development"><span class="env-key">NODE_ENV</span><span class="env-val"><code>development</code></span><span class="env-req" data-i18n="opt">optional</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="PORT" data-val="3001"><span class="env-key">PORT</span><span class="env-val">Gateway listen port (default <code>3001</code>)</span><span class="env-req" data-i18n="opt">optional</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="KEYCLOAK_URL" data-val="http://localhost:8081"><span class="env-key">KEYCLOAK_URL</span><span class="env-val">Keycloak server base URL</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="KEYCLOAK_REALM" data-val="SEMA-UNIVERSE"><span class="env-key">KEYCLOAK_REALM</span><span class="env-val"><code>SEMA-UNIVERSE</code></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="KEYCLOAK_CLIENT_ID" data-val="api-gateway"><span class="env-key">KEYCLOAK_CLIENT_ID</span><span class="env-val"><code>api-gateway</code></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="KEYCLOAK_CLIENT_SECRET" data-val=""><span class="env-key">KEYCLOAK_CLIENT_SECRET</span><span class="env-val">Copied from Keycloak client credentials tab (Step 5)</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="KEYCLOAK_REDIRECT_URI" data-val="http://localhost:3001/auth/callback"><span class="env-key">KEYCLOAK_REDIRECT_URI</span><span class="env-val"><code>http://localhost:3001/auth/callback</code></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="GATEWAY_TOKEN_SECRET" data-val="default-gateway-secret-change-in-production"><span class="env-key">GATEWAY_TOKEN_SECRET</span><span class="env-val">Secret for signing gateway JWTs. <strong>Must match all backends.</strong></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="GATEWAY_SHARED_SECRET" data-val=""><span class="env-key">GATEWAY_SHARED_SECRET</span><span class="env-val">Secret for HMAC request signing. <strong>Must match all backends.</strong></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="SESSION_SECRET" data-val="your-super-secret-session-key"><span class="env-key">SESSION_SECRET</span><span class="env-val">Express session secret</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="SESSION_DOMAIN" data-val="localhost"><span class="env-key">SESSION_DOMAIN</span><span class="env-val">Cookie domain. Use <code>localhost</code> locally, <code>.sema.app</code> in production</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="REDIS_HOST" data-val="localhost"><span class="env-key">REDIS_HOST</span><span class="env-val"><code>localhost</code> or Redis service hostname</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="REDIS_PORT" data-val="6379"><span class="env-key">REDIS_PORT</span><span class="env-val"><code>6379</code></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="REDIS_PASSWORD" data-val=""><span class="env-key">REDIS_PASSWORD</span><span class="env-val">Redis password (leave empty for local)</span><span class="env-req" data-i18n="opt">optional</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="DATABASE_URL" data-val="postgresql://postgres:1234567@localhost:5432/sema-api-gateway"><span class="env-key">DATABASE_URL</span><span class="env-val">PostgreSQL connection string</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.env.frontend.title">Frontend Apps (Next.js)</div>
+          <button class="env-copy-all" data-service="frontend"><i data-lucide="copy"></i><span data-i18n="env.copy.all">Copy all</span></button>
+          <div class="env-list" data-service="frontend">
+            <div class="env-item" data-key="NEXT_PUBLIC_SEMA_SSO_URL" data-val="http://localhost:3001"><span class="env-key">NEXT_PUBLIC_SEMA_SSO_URL</span><span class="env-val">SSO API Gateway URL. Example: <code>http://localhost:3001</code></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="NEXT_PUBLIC_API_URL" data-val="http://localhost:3003"><span class="env-key">NEXT_PUBLIC_API_URL</span><span class="env-val">Backend service URL (core-service :3003, order :3005, bulk :3007)</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.env.backend.title">NestJS Backend Services</div>
+          <button class="env-copy-all" data-service="backend"><i data-lucide="copy"></i><span data-i18n="env.copy.all">Copy all</span></button>
+          <div class="env-list" data-service="backend">
+            <div class="env-item" data-key="NODE_ENV" data-val="development"><span class="env-key">NODE_ENV</span><span class="env-val"><code>development</code></span><span class="env-req" data-i18n="opt">optional</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="PORT" data-val="3003"><span class="env-key">PORT</span><span class="env-val">Service port (3003 core, 3005 order, 3007 bulk)</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="GATEWAY_TOKEN_SECRET" data-val="default-gateway-secret-change-in-production"><span class="env-key">GATEWAY_TOKEN_SECRET</span><span class="env-val"><strong>Must be identical to the gateway value</strong></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="GATEWAY_SHARED_SECRET" data-val=""><span class="env-key">GATEWAY_SHARED_SECRET</span><span class="env-val"><strong>Must be identical to the gateway value</strong></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="SERVICE_ID" data-val="sema-core-service"><span class="env-key">SERVICE_ID</span><span class="env-val">Must match the <code>aud</code> claim in gateway JWT (e.g. <code>sema-core-service</code>)</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="SSO_API_GATEWAY_URL" data-val="http://localhost:3001"><span class="env-key">SSO_API_GATEWAY_URL</span><span class="env-val">For credential lookup calls to the gateway</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="REDIS_HOST" data-val="localhost"><span class="env-key">REDIS_HOST</span><span class="env-val">Same Redis instance as the gateway (for JTI blacklist)</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="REDIS_PORT" data-val="6379"><span class="env-key">REDIS_PORT</span><span class="env-val"><code>6379</code></span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="DATABASE_URL" data-val="postgresql://postgres:1234567@localhost:5432/sema-core-service"><span class="env-key">DATABASE_URL</span><span class="env-val">PostgreSQL connection string (Prisma)</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.env.router.title">sema-router (Go)</div>
+          <button class="env-copy-all" data-service="router"><i data-lucide="copy"></i><span data-i18n="env.copy.all">Copy all</span></button>
+          <div class="env-list" data-service="router">
+            <div class="env-item" data-key="SSOAPIBaseURL" data-val="http://localhost:3001"><span class="env-key">SSOAPIBaseURL</span><span class="env-val">SSO API Gateway URL for credential fetching</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="KAFKA_BROKERS" data-val="localhost:9092"><span class="env-key">KAFKA_BROKERS</span><span class="env-val">Comma-separated list of Kafka brokers</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="WHATSAPP_VERIFY_TOKEN" data-val=""><span class="env-key">WHATSAPP_VERIFY_TOKEN</span><span class="env-val">Meta webhook verification token</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+            <div class="env-item" data-key="OPENAI_API_KEY" data-val=""><span class="env-key">OPENAI_API_KEY</span><span class="env-val">OpenAI key for AI scenario items</span><span class="env-req" data-i18n="req">REQUIRED</span><button class="env-var-copy" title="Copy"><i data-lucide="copy"></i></button></div>
+          </div>
+        </div>
+
+        <div class="info-box warn mt-16">
+          <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+          <p data-i18n="env.warn"></p>
+        </div>
+      </section>

@@ -1,0 +1,276 @@
+      <!-- ════════════════════════════════════ OVERVIEW -->
+      <section class="section active" id="overview">
+        <div class="page-header">
+          <h1 data-i18n="page.overview.title">Overview &amp; Architecture</h1>
+          <p data-i18n="page.overview.desc">How every app in the Sema Universe authenticates — one Keycloak realm, one API Gateway, one identity.</p>
+        </div>
+
+        <!-- About this guide -->
+        <div class="card">
+          <div class="card-title" data-i18n="overview.about.title">About This Guide</div>
+          <p data-i18n="overview.about.body"></p>
+          <div class="info-box tip mt-16">
+            <span class="icon-box"><i data-lucide="lightbulb"></i></span>
+            <p data-i18n="overview.about.tip"></p>
+          </div>
+        </div>
+
+        <!-- Glossary -->
+        <div class="card">
+          <div class="card-title" data-i18n="card.glossary.title">Glossary — Key Terms</div>
+          <p class="mb-16" data-i18n="card.glossary.desc"></p>
+          <div class="glossary-list">
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr">SSO</span>
+                <span class="glossary-fullname" data-i18n="glossary.sso.fullname">Single Sign-On</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.sso.def"></p>
+            </div>
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr">Keycloak</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.keycloak.def"></p>
+            </div>
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr" data-i18n="glossary.gateway.term">API Gateway</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.gateway.def"></p>
+            </div>
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr">JWT</span>
+                <span class="glossary-fullname" data-i18n="glossary.jwt.fullname">JSON Web Token</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.jwt.def"></p>
+            </div>
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr">OIDC</span>
+                <span class="glossary-fullname" data-i18n="glossary.oidc.fullname">OpenID Connect</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.oidc.def"></p>
+            </div>
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr">Redis</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.redis.def"></p>
+            </div>
+
+            <div class="glossary-item">
+              <div class="glossary-term">
+                <span class="glossary-abbr">HMAC</span>
+                <span class="glossary-fullname" data-i18n="glossary.hmac.fullname">Hash-based Message Auth Code</span>
+              </div>
+              <p class="glossary-def" data-i18n="glossary.hmac.def"></p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Core Principle -->
+        <div class="card">
+          <div class="card-title" data-i18n="card.core_principle.title">The Core Principle</div>
+          <p data-i18n="card.core_principle.body"></p>
+          <div class="info-box info mt-16">
+            <span class="icon-box"><i data-lucide="info"></i></span>
+            <p data-i18n="card.core_principle.insight"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.arch.title">System Architecture</div>
+          <div class="arch-v2">
+            <div class="arch-v2-inner">
+
+              <!-- Layer 1: Browser -->
+              <div class="arch-v2-row">
+                <div class="arch-v2-node dim">
+                  <div class="arch-v2-node-icon"><i data-lucide="user"></i></div>
+                  <div class="arch-v2-label" data-i18n="arch.user">User</div>
+                  <div class="arch-v2-sub" data-i18n="arch.user.sub">Browser</div>
+                </div>
+              </div>
+
+              <div class="arch-v2-down">
+                <div class="arch-v2-down-line"></div>
+                <div class="arch-v2-down-label" data-i18n="arch.conn.visit">visits app</div>
+              </div>
+
+              <!-- Layer 2: Four frontend apps -->
+              <div class="arch-v2-row">
+                <div class="arch-v2-node primary">
+                  <div class="arch-v2-node-icon"><i data-lucide="monitor"></i></div>
+                  <div class="arch-v2-label">sema-core</div>
+                  <div class="arch-v2-sub">:3000</div>
+                </div>
+                <div class="arch-v2-node primary">
+                  <div class="arch-v2-node-icon"><i data-lucide="monitor"></i></div>
+                  <div class="arch-v2-label">sema-order</div>
+                  <div class="arch-v2-sub">:3002</div>
+                </div>
+                <div class="arch-v2-node primary">
+                  <div class="arch-v2-node-icon"><i data-lucide="monitor"></i></div>
+                  <div class="arch-v2-label">sema-sso</div>
+                  <div class="arch-v2-sub">:3004</div>
+                </div>
+                <div class="arch-v2-node primary">
+                  <div class="arch-v2-node-icon"><i data-lucide="monitor"></i></div>
+                  <div class="arch-v2-label">sema-bulk</div>
+                  <div class="arch-v2-sub">:3006</div>
+                </div>
+              </div>
+
+              <div class="arch-v2-down">
+                <div class="arch-v2-down-line"></div>
+                <div class="arch-v2-down-label"><code>/auth/login?redirect_uri={app_origin}&amp;callback_mode=direct</code></div>
+              </div>
+
+              <!-- Layer 3: SSO Gateway (central hub) -->
+              <div class="arch-v2-row">
+                <div class="arch-v2-node gateway">
+                  <div class="arch-v2-node-icon"><i data-lucide="shield"></i></div>
+                  <div class="arch-v2-label" data-i18n="arch.gateway">SSO API Gateway</div>
+                  <div class="arch-v2-sub" data-i18n="arch.gateway.sub">Express + Redis — Port 3001</div>
+                </div>
+              </div>
+
+              <!-- Layer 4: Split — Keycloak left, Backends right -->
+              <div class="arch-v2-split">
+                <div class="arch-v2-split-branch">
+                  <div class="arch-v2-branch-label" data-i18n="arch.conn.oidc">OIDC code flow</div>
+                  <div class="arch-v2-node identity">
+                    <div class="arch-v2-node-icon"><i data-lucide="key-round"></i></div>
+                    <div class="arch-v2-label" data-i18n="arch.keycloak">Keycloak</div>
+                    <div class="arch-v2-sub" data-i18n="arch.keycloak.sub">SEMA-UNIVERSE</div>
+                  </div>
+                  <div class="arch-v2-node dim" style="margin-top:8px;">
+                    <div class="arch-v2-inline"><i data-lucide="database"></i></div>
+                    <div class="arch-v2-label">Redis</div>
+                    <div class="arch-v2-sub" data-i18n="arch.redis.sub">Sessions + JTI</div>
+                  </div>
+                </div>
+                <div class="arch-v2-split-branch">
+                  <div class="arch-v2-branch-label" data-i18n="arch.conn.jwt">JWT + HMAC-SHA256</div>
+                  <div class="arch-v2-node dim" style="min-width:148px;">
+                    <div class="arch-v2-inline"><i data-lucide="server"></i>
+                      <span class="arch-v2-label">core-service</span>
+                    </div>
+                    <div class="arch-v2-sub">:3003</div>
+                  </div>
+                  <div class="arch-v2-node dim" style="margin-top:6px;min-width:148px;">
+                    <div class="arch-v2-inline"><i data-lucide="server"></i>
+                      <span class="arch-v2-label">order-backend</span>
+                    </div>
+                    <div class="arch-v2-sub">:3005</div>
+                  </div>
+                  <div class="arch-v2-node dim" style="margin-top:6px;min-width:148px;">
+                    <div class="arch-v2-inline"><i data-lucide="server"></i>
+                      <span class="arch-v2-label">bulk-backend</span>
+                    </div>
+                    <div class="arch-v2-sub">:3007</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Return path explanation -->
+              <div class="arch-v2-return">
+                <i data-lucide="corner-up-left"></i>
+                <span data-i18n="arch.return">Gateway completes the round-trip: redirects to <code>redirect_uri?token=&lt;jwt&gt;</code> — each frontend app receives its own JWT and never shares an auth page with other apps.</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.apps.title">Apps in the Universe</div>
+          <div class="app-grid">
+            <div class="app-card" data-section="frontend" data-sub="core">
+              <div class="app-card-name" data-i18n="app.core.name">sema-core-frontend</div>
+              <div class="app-card-role" data-i18n="app.core.role">Main operations dashboard</div>
+              <div class="app-card-tags">
+                <span class="tag tag-pub">Next.js 14</span>
+                <span class="tag tag-get">AuthProvider</span>
+              </div>
+            </div>
+            <div class="app-card" data-section="frontend" data-sub="order">
+              <div class="app-card-name" data-i18n="app.order.name">sema-order-frontend</div>
+              <div class="app-card-role" data-i18n="app.order.role">Order management interface</div>
+              <div class="app-card-tags">
+                <span class="tag tag-pub">Next.js</span>
+                <span class="tag tag-get">AuthProvider</span>
+              </div>
+            </div>
+            <div class="app-card" data-section="frontend" data-sub="sso">
+              <div class="app-card-name" data-i18n="app.sso.name">sema-sso-frontend</div>
+              <div class="app-card-role" data-i18n="app.sso.role">SSO login &amp; onboarding</div>
+              <div class="app-card-tags">
+                <span class="tag tag-pub">Next.js</span>
+                <span class="tag tag-priv">Identity</span>
+              </div>
+            </div>
+            <div class="app-card" data-section="frontend" data-sub="bulk">
+              <div class="app-card-name" data-i18n="app.bulk.name">sema-bulk-frontend</div>
+              <div class="app-card-role" data-i18n="app.bulk.role">Bulk messaging campaigns</div>
+              <div class="app-card-tags">
+                <span class="tag tag-pub">Next.js</span>
+                <span class="tag tag-get">AuthProvider</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-grid mt-16">
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="card.apps.backends">Backend Services</div>
+              <p style="font-size:.85rem;"><strong>sema-core-service</strong> — NestJS, JWT strategy, <code>x-credential-id</code></p>
+              <p style="font-size:.85rem;margin-top:6px;"><strong>sema-order-backend</strong> — NestJS, same pattern</p>
+              <p style="font-size:.85rem;margin-top:6px;"><strong>sema-bulk-backend</strong> — NestJS + auto-tenant provisioning</p>
+            </div>
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="card.apps.infra">Infrastructure</div>
+              <p style="font-size:.85rem;"><strong>SEMA-SSO-api-gateway</strong> — Express, OAuth2/OIDC, Redis sessions</p>
+              <p style="font-size:.85rem;margin-top:6px;"><strong>sema-router</strong> — Go, no JWT, fetches creds from SSO API</p>
+              <p style="font-size:.85rem;margin-top:6px;"><strong>SEMA-KEYCLOAK-THEME</strong> — Custom UI for Keycloak</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.flow.title">Authentication Flow Summary</div>
+          <div class="flow-steps">
+            <div class="flow-step"><div class="flow-step-num">1</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="flow.1.title">User visits any frontend app</div>
+              <div class="flow-step-desc" data-i18n="flow.1.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">2</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="flow.2.title">Gateway initiates OIDC flow</div>
+              <div class="flow-step-desc" data-i18n="flow.2.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">3</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="flow.3.title">User authenticates on Keycloak</div>
+              <div class="flow-step-desc" data-i18n="flow.3.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">4</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="flow.4.title">Gateway exchanges code for tokens</div>
+              <div class="flow-step-desc" data-i18n="flow.4.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">5</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="flow.5.title">Gateway redirects back to the originating app</div>
+              <div class="flow-step-desc" data-i18n="flow.5.desc"></div>
+            </div></div>
+            <div class="flow-step"><div class="flow-step-num">6</div><div class="flow-step-content">
+              <div class="flow-step-title" data-i18n="flow.6.title">API calls use gateway JWT</div>
+              <div class="flow-step-desc" data-i18n="flow.6.desc"></div>
+            </div></div>
+          </div>
+        </div>
+      </section>

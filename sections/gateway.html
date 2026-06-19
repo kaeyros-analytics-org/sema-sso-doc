@@ -1,0 +1,236 @@
+      <!-- ════════════════════════════════════ GATEWAY -->
+      <section class="section" id="gateway">
+        <div class="page-header">
+          <h1 data-i18n="page.gateway.title">SSO API Gateway</h1>
+          <p data-i18n="page.gateway.desc">The central authentication broker.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.endpoints.title">Auth Endpoints</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th data-i18n="th.method">Method</th><th data-i18n="th.path">Path</th><th data-i18n="th.description">Description</th></tr></thead>
+              <tbody>
+                <tr><td><span class="tag tag-get">GET</span></td><td><code class="cell-code">/auth/login</code></td><td data-i18n="gw.ep.login.desc"></td></tr>
+                <tr><td><span class="tag tag-get">GET</span></td><td><code class="cell-code">/auth/callback</code></td><td data-i18n="gw.ep.callback.desc"></td></tr>
+                <tr><td><span class="tag tag-get">GET</span></td><td><code class="cell-code">/auth/session</code></td><td data-i18n="gw.ep.session.desc"></td></tr>
+                <tr><td><span class="tag tag-get">GET</span></td><td><code class="cell-code">/auth/check</code></td><td data-i18n="gw.ep.check.desc"></td></tr>
+                <tr><td><span class="tag tag-get">GET</span></td><td><code class="cell-code">/auth/profile</code></td><td data-i18n="gw.ep.profile.desc"></td></tr>
+                <tr><td><span class="tag tag-post">POST</span></td><td><code class="cell-code">/auth/refresh-token</code></td><td data-i18n="gw.ep.refresh.desc"></td></tr>
+                <tr><td><span class="tag tag-get">GET</span></td><td><code class="cell-code">/auth/logout</code></td><td data-i18n="gw.ep.logout.desc"></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.jwt.title">Gateway JWT Structure</div>
+          <p data-i18n="gw.jwt.desc">The gateway issues its own JWT — NOT the Keycloak token.</p>
+          <div class="code-block mt-16">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>JWT Payload</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>{
+  "iss": "api-gateway",          // issuer — must match in backend JWT strategy
+  "aud": ["sema-core-service"],  // audience — must include SERVICE_ID of target
+  "sub": "&lt;keycloak-user-id&gt;",
+  "jti": "&lt;unique-token-id&gt;",   // validated against Redis blacklist
+  "email": "user@kaeyros.com",
+  "name": "Jordan Yeinko",
+  "roles": ["admin", ...],
+  "iat": 1718000000,
+  "exp": 1718003600              // 1 hour default
+}</pre>
+          </div>
+          <div class="info-box warn mt-16">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="gw.jwt.warn"></p>
+          </div>
+        </div>
+
+        <!-- Critical: Shared Secret Warning -->
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.sharedsecret.title">Critical — Shared Secret Synchronization</div>
+          <div class="info-box danger">
+            <span class="icon-box"><i data-lucide="alert-octagon"></i></span>
+            <p data-i18n="gw.sharedsecret.danger"></p>
+          </div>
+          <div class="table-wrap mt-16">
+            <table>
+              <thead><tr><th data-i18n="th.variable">Variable</th><th data-i18n="th.where">Must be identical in</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code class="cell-code">GATEWAY_TOKEN_SECRET</code></td>
+                  <td data-i18n="gw.secret.token.where">Gateway + sema-core-service + sema-order-backend + sema-bulk-backend</td>
+                </tr>
+                <tr>
+                  <td><code class="cell-code">GATEWAY_SHARED_SECRET</code></td>
+                  <td data-i18n="gw.secret.shared.where">Gateway + sema-core-service + sema-order-backend + sema-bulk-backend</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="code-desc" data-i18n="gw.sharedsecret.how"></p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Copy from gateway .env → paste into every backend .env</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre># These two lines must be byte-for-byte identical across ALL services:
+GATEWAY_TOKEN_SECRET=default-gateway-secret-change-in-production
+GATEWAY_SHARED_SECRET=a53966c1d2c75acf36faae6415f3a2793833fd5e394aadd3951289cc63a1bcf0
+
+# How to generate a secure random value:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.hmac.title">Service-to-Service Auth (HMAC)</div>
+          <p data-i18n="gw.hmac.desc">When the gateway forwards requests to backend services, it adds two extra headers.</p>
+          <div class="table-wrap mt-16">
+            <table>
+              <thead><tr><th data-i18n="th.header">Header</th><th data-i18n="th.value">Value</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code class="cell-code">x-gateway-signature</code></td>
+                  <td><code>HMAC-SHA256("{timestamp}:{method}:{path}", GATEWAY_SHARED_SECRET)</code></td>
+                </tr>
+                <tr>
+                  <td><code class="cell-code">x-gateway-timestamp</code></td>
+                  <td>Unix timestamp in milliseconds (used in signature + replay-attack prevention)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="code-desc" data-i18n="gw.hmac.gateway.desc"></p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Gateway side — signing the request (Express)</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>// In the gateway proxy middleware, before forwarding to backend:
+import crypto from 'crypto';
+
+const timestamp = Date.now().toString();
+const signature = crypto
+  .createHmac('sha256', process.env.GATEWAY_SHARED_SECRET)
+  .update(`${timestamp}:${req.method}:${req.path}`)
+  .digest('hex');
+
+// These headers are added to the forwarded request:
+proxyReq.setHeader('x-gateway-timestamp', timestamp);
+proxyReq.setHeader('x-gateway-signature', signature);</pre>
+          </div>
+          <p class="code-desc" data-i18n="gw.hmac.backend.desc"></p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Backend side — verifying the signature (NestJS middleware)</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import { createHmac } from 'crypto';
+
+@Injectable()
+export class GatewayMiddleware implements NestMiddleware {
+  use(req: any, res: any, next: () => void) {
+    const timestamp = req.headers['x-gateway-timestamp'] as string;
+    const signature = req.headers['x-gateway-signature'] as string;
+
+    if (!timestamp || !signature) {
+      throw new UnauthorizedException('Missing gateway headers');
+    }
+
+    // Reject requests older than 5 minutes (replay attack prevention)
+    if (Date.now() - parseInt(timestamp) > 300_000) {
+      throw new UnauthorizedException('Request timestamp expired');
+    }
+
+    const expected = createHmac('sha256', process.env.GATEWAY_SHARED_SECRET)
+      .update(`${timestamp}:${req.method}:${req.path}`)
+      .digest('hex');
+
+    if (signature !== expected) {
+      throw new UnauthorizedException('Invalid gateway signature');
+    }
+
+    next();
+  }
+}</pre>
+          </div>
+          <div class="info-box warn mt-16">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="gw.hmac.warn"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.routes.title">Route Registration — Adding a New Backend</div>
+          <p data-i18n="gw.routes.desc">Every backend service must be declared in the gateway's route files before it can receive forwarded requests. There are <strong>four files</strong> to update — one for local development and one per deployed environment.</p>
+          <div class="info-box warn mt-16">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="gw.routes.warn">Without a matching entry in these files the gateway returns <code>404 Not Found</code> for every request to that service, regardless of authentication state.</p>
+          </div>
+          <div class="table-wrap mt-16">
+            <table>
+              <thead><tr><th data-i18n="th.file">File</th><th data-i18n="th.used">Used when</th></tr></thead>
+              <tbody>
+                <tr><td><code class="cell-code">routes.yml</code> <span style="font-size:.75rem;color:var(--text-dim)">(repo root)</span></td><td data-i18n="gw.routes.local.when">Local development — <code>bun run start:dev</code></td></tr>
+                <tr><td><code class="cell-code">.github/routes/routes-dev.yml</code></td><td data-i18n="gw.routes.dev.when">Dev environment (CI/CD pipeline)</td></tr>
+                <tr><td><code class="cell-code">.github/routes/routes-stg.yml</code></td><td data-i18n="gw.routes.stg.when">Staging environment (CI/CD pipeline)</td></tr>
+                <tr><td><code class="cell-code">.github/routes/routes-prod.yml</code></td><td data-i18n="gw.routes.prod.when">Production environment (CI/CD pipeline)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="code-desc mt-16" data-i18n="gw.routes.local.desc">Add an entry for your service in <code>routes.yml</code> (local). The <code>path</code> is the URL prefix clients use; <code>target</code> is where the gateway forwards the request.</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>routes.yml — local development</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>routes:
+  - path: "core-service"
+    target: "http://localhost:3003"
+    rewritePath: true
+  # Add your new service here:
+  - path: "my-new-service"
+    target: "http://localhost:3005"   # your service's local port
+    rewritePath: true</pre>
+          </div>
+          <p class="code-desc" data-i18n="gw.routes.deployed.desc">For each deployed environment, add the same entry pointing to the deployed URL.</p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>.github/routes/routes-dev.yml (repeat pattern for stg and prod)</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>routes:
+  - path: "core-service"
+    target: "https://core-dev.sem-a.com"
+    rewritePath: true
+  # Add your new service:
+  - path: "my-new-service"
+    target: "https://my-service-dev.sem-a.com"
+    rewritePath: true</pre>
+          </div>
+          <div class="info-box info mt-16">
+            <span class="icon-box"><i data-lucide="info"></i></span>
+            <p data-i18n="gw.routes.service-id.info">The <code>path</code> value in routes.yml must match the <code>SERVICE_ID</code> environment variable in your backend service — the gateway uses it to build the JWT <code>aud</code> claim and to verify that the token is destined for your service.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.session.title">Session Storage</div>
+          <p data-i18n="gw.session.desc">The gateway uses <strong>Redis</strong> for two purposes:</p>
+          <div class="grid-2 mt-16">
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="gw.session.store.title">Session Store</div>
+              <p style="font-size:.875rem;" data-i18n="gw.session.store.desc"></p>
+            </div>
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--danger);margin-bottom:8px;" data-i18n="gw.session.jti.title">JTI Blacklist</div>
+              <p style="font-size:.875rem;" data-i18n="gw.session.jti.desc"></p>
+            </div>
+          </div>
+        </div>
+      </section>

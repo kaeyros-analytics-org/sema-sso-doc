@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sema Universe — SSO Integration Docs</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<div class="layout">
+
+  <!-- ══════════════════════════════════════════ SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">S</div>
+      <div>
+        <div class="sidebar-title" data-i18n="sidebar.title">Sema Universe</div>
+        <div class="sidebar-subtitle" data-i18n="sidebar.subtitle">SSO Integration Docs</div>
+      </div>
+    </div>
+
+    <nav style="overflow-y:auto;flex:1;padding-bottom:12px;">
+      <div class="nav-section">
+        <div class="nav-section-label" data-i18n="nav.section.intro">Introduction</div>
+        <div class="nav-item" data-section="overview">
+          <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>
+          <span class="nav-label" data-i18n="nav.overview">Overview &amp; Architecture</span>
+        </div>
+        <div class="nav-item" data-section="keycloak">
+          <span class="nav-icon"><i data-lucide="key-round"></i></span>
+          <span class="nav-label" data-i18n="nav.keycloak">Keycloak Setup</span>
+        </div>
+        <div class="nav-item" data-section="gateway">
+          <span class="nav-icon"><i data-lucide="shield"></i></span>
+          <span class="nav-label" data-i18n="nav.gateway">SSO API Gateway</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label" data-i18n="nav.section.integration">Integration</div>
+        <div class="nav-item" data-section="frontend">
+          <span class="nav-icon"><i data-lucide="monitor"></i></span>
+          <span class="nav-label" data-i18n="nav.frontend">Frontend Apps</span>
+          <span class="nav-badge">4</span>
+        </div>
+        <div class="nav-item" data-section="backend">
+          <span class="nav-icon"><i data-lucide="server"></i></span>
+          <span class="nav-label" data-i18n="nav.backend">Backend Services</span>
+          <span class="nav-badge">3</span>
+        </div>
+        <div class="nav-item" data-section="router">
+          <span class="nav-icon"><i data-lucide="radio"></i></span>
+          <span class="nav-label" data-i18n="nav.router">sema-router (Go)</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label" data-i18n="nav.section.reference">Reference</div>
+        <div class="nav-item" data-section="envvars">
+          <span class="nav-icon"><i data-lucide="sliders-horizontal"></i></span>
+          <span class="nav-label" data-i18n="nav.envvars">Environment Variables</span>
+        </div>
+        <div class="nav-item" data-section="newapp">
+          <span class="nav-icon"><i data-lucide="sparkles"></i></span>
+          <span class="nav-label" data-i18n="nav.newapp">New App Guide</span>
+        </div>
+        <div class="nav-item" data-section="token-flow">
+          <span class="nav-icon"><i data-lucide="git-merge"></i></span>
+          <span class="nav-label" data-i18n="nav.tokenflow">Token Flow Diagrams</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span data-i18n="sidebar.footer.version">Sema Universe v1.0</span>
+      <span data-i18n="sidebar.footer.org">Internal — Kaeyros Analytics</span>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════ MAIN -->
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburger"><i data-lucide="menu"></i></button>
+        <div class="breadcrumb">
+          <span>Sema Universe</span>
+          <span class="breadcrumb-sep"><i data-lucide="chevron-right"></i></span>
+          <span class="current" data-i18n="nav.overview">Overview &amp; Architecture</span>
+        </div>
+      </div>
+      <div class="topbar-search">
+        <div class="search-wrap">
+          <span class="search-icon"><i data-lucide="search"></i></span>
+          <input type="text" id="search-input" class="search-input" placeholder="Search docs…" autocomplete="off" spellcheck="false" />
+          <button class="search-clear" id="search-clear" aria-label="Clear">&#x2715;</button>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button id="theme-toggle" class="icon-btn" title="Toggle theme"><i data-lucide="moon"></i></button>
+        <!-- language toggle injected here by script.js -->
+        <span class="badge-version">SSO v1.0</span>
+        <span class="badge-env" data-i18n="topbar.env">● Active</span>
+      </div>
+    </div>
+
+    <!-- Sections injected here by script.js -->
+    <div class="content" id="app-sections">
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- Search panel -->
+<div class="search-panel" id="search-panel" role="search">
+  <div class="search-panel-inner" id="search-panel-inner"></div>
+</div>
+
+<button id="back-top" title="Back to top"><i data-lucide="arrow-up"></i></button>
+
+<!-- Image modal -->
+<div class="img-modal" id="img-modal" role="dialog" aria-modal="true">
+  <div class="img-modal-inner">
+    <button class="img-modal-close" id="img-modal-close" aria-label="Close">&#x2715;</button>
+    <img id="img-modal-img" src="" alt="" />
+  </div>
+</div>
+
+<!-- i18n must load before script.js -->
+<script src="i18n/en.js"></script>
+<script src="i18n/fr.js"></script>
+<script src="i18n/de.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

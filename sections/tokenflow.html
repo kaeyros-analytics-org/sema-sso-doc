@@ -1,0 +1,133 @@
+      <!-- ════════════════════════════════════ TOKEN FLOW -->
+      <section class="section" id="token-flow">
+        <div class="page-header">
+          <h1 data-i18n="page.tokenflow.title">Token Flow Diagrams</h1>
+          <p data-i18n="page.tokenflow.desc">Detailed sequence diagrams for the most important flows.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.tf.login.title">Initial Login Flow</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Sequence</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>Browser           Frontend           Gateway             Keycloak           Redis
+   |                  |                  |                    |                  |
+   |-- visit /app --> |                  |                    |                  |
+   |                  |-- GET /auth/check|                    |                  |
+   |                  |  &lt;-- {authenticated:false} ----------|                  |
+   |                  |                  |                    |                  |
+   |&lt;-- redirect -----|  /auth/login     |                    |                  |
+   |                                     |                    |                  |
+   |-- GET /auth/login?redirect_uri=X -- |                    |                  |
+   |                                     |-- redirect to KC --&gt;                 |
+   |&lt;------ redirect to Keycloak --------+--------------------+                  |
+   |                                                          |                  |
+   |-- user credentials ----------------------------------------&gt;               |
+   |&lt;-- authorization code -------------------------------------|                |
+   |                                                                             |
+   |-- GET /auth/callback?code=X --------&gt;                                      |
+   |                                     |-- exchange code --&gt;                  |
+   |                                     |&lt;-- KC tokens ------                  |
+   |                                     |-- mint gateway JWT                    |
+   |                                     |-- store session ------------------&gt;  |
+   |&lt;-- redirect to X?token=&lt;JWT&gt; ------+                                       |
+   |                                                                             |
+   |-- GET /auth/session -----------------&gt;                                     |
+   |&lt;-- { user, token } -----------------+                                      |</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.tf.api.title">Authenticated API Call Flow</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Sequence</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>Frontend           Backend Service       Redis (blacklist)
+   |                    |                       |
+   |-- GET /api/data ---|                       |
+   |   Authorization: Bearer &lt;gateway_jwt&gt;     |
+   |   x-gateway-signature: &lt;hmac&gt;             |
+   |   x-gateway-timestamp: &lt;ts&gt;               |
+   |   x-credential-id: &lt;credential_id&gt;        |
+   |                    |                       |
+   |                    |-- validate JWT iss === "api-gateway"
+   |                    |-- validate aud includes SERVICE_ID
+   |                    |-- check JTI not blacklisted --&gt; |
+   |                    |                  &lt;-- not found --|
+   |                    |-- validate HMAC signature
+   |                    |-- process request
+   |&lt;-- 200 { data } ---|                       |</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.tf.refresh.title">Token Refresh Flow</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Sequence</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>httpClient (frontend)      Gateway              Keycloak
+   |                           |                    |
+   |-- original request ------&gt;|                    |
+   |                       Backend returns 401      |
+   |&lt;-- 401 -------------------+                    |
+   |                           |                    |
+   |-- POST /auth/refresh-token|                    |
+   |   { refresh_token: ... }  |                    |
+   |                           |-- refresh KC token-&gt;
+   |                           |&lt;-- new KC tokens --+
+   |                           |-- mint new gateway JWT
+   |&lt;-- { token: &lt;new_jwt&gt; } --|                    |
+   |                           |                    |
+   |-- retry original request with new token ------&gt;|
+   |&lt;-- 200 { data } ----------|                    |</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.tf.logout.title">Logout Flow</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Sequence</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>Browser           Gateway              Redis              Keycloak
+   |                  |                    |                  |
+   |-- GET /auth/logout|                   |                  |
+   |                  |-- blacklist JTI --&gt;|                  |
+   |                  |-- destroy session -|                  |
+   |                  |-- KC logout --------------------------------&gt;
+   |&lt;-- redirect to login page -----------+------------------+</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.tf.router.title">sema-router WhatsApp Webhook Flow</div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Sequence</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>Meta Servers       sema-router        SSO Gateway        Kafka
+   |                    |                  |                 |
+   |-- POST /webhook -&gt; |                  |                 |
+   |   (WhatsApp msg)   |                  |                 |
+   |                    |-- verify HMAC from Meta            |
+   |                    |-- extract phone_number_id          |
+   |                    |-- GET /credentials                 |
+   |                    |   ?phone_number_id=X --&gt;           |
+   |                    |&lt;-- credential record ---|          |
+   |                    |                                    |
+   |                    |-- run scenario / AI logic          |
+   |                    |-- publish to Kafka ---------------&gt;|
+   |                    |   CHAT_INCOMING_MESSAGE_TOPIC      |
+   |                    |   { credential_id, company_id,    |
+   |                    |     conversation_id, text, ... }   |</pre>
+          </div>
+        </div>
+      </section>

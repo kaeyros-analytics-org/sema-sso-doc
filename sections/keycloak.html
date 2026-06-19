@@ -1,0 +1,435 @@
+      <!-- ════════════════════════════════════ KEYCLOAK -->
+      <section class="section" id="keycloak">
+        <div class="page-header">
+          <h1 data-i18n="page.keycloak.title">Keycloak</h1>
+          <p data-i18n="page.keycloak.desc">The SEMA-UNIVERSE realm and api-gateway client already exist. Your app never talks to Keycloak directly — the SSO gateway handles all OIDC on behalf of every app in the platform.</p>
+        </div>
+
+        <!-- ── Common: Existing infrastructure ── -->
+        <div class="card">
+          <div class="card-title" data-i18n="card.kc.existing.title">Existing Infrastructure — Do Not Recreate</div>
+          <div class="info-box warn mt-0">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="kc.existing.warn"></p>
+          </div>
+          <div class="table-wrap mt-16">
+            <table>
+              <thead><tr><th data-i18n="th.setting">Setting</th><th data-i18n="th.value">Value</th></tr></thead>
+              <tbody>
+                <tr><td data-i18n="kc.client">Client ID</td><td><code class="cell-code">api-gateway</code></td></tr>
+                <tr><td data-i18n="kc.grant">Grant Type</td><td>Authorization Code + PKCE</td></tr>
+                <tr><td data-i18n="kc.auth">Token Endpoint Auth</td><td>Client Secret (confidential client)</td></tr>
+                <tr><td data-i18n="kc.theme">Theme</td><td>Custom SEMA theme (<code>SEMA-KEYCLOAK-THEME</code>)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Common: Your app never calls Keycloak ── -->
+        <div class="card">
+          <div class="card-title" data-i18n="card.kc.nocontact.title">Your App Never Calls Keycloak Directly</div>
+          <p data-i18n="kc.nocontact.desc"></p>
+          <div class="info-box info mt-16">
+            <span class="icon-box"><i data-lucide="info"></i></span>
+            <p data-i18n="kc.nocontact.tip"></p>
+          </div>
+        </div>
+
+        <!-- ══════════ TABS: Local / Deployed ══════════ -->
+        <div>
+          <div class="sub-tabs">
+            <button class="sub-tab" data-target="kc-local" data-i18n="kc.tab.local">Local Development</button>
+            <button class="sub-tab" data-target="kc-deployed" data-i18n="kc.tab.deployed">Deployed Environments</button>
+          </div>
+
+          <!-- ────────── LOCAL TAB ────────── -->
+          <div class="sub-content" data-id="kc-local">
+
+            <!-- Start Keycloak -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.launch.title">Start Keycloak Locally</div>
+              <p data-i18n="kc.launch.desc"></p>
+              <p class="code-desc" data-i18n="kc.launch.restart.label"></p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang"><span class="dot"></span>Shell — from SEMA-KEYCLOAK-THEME directory</span>
+                  <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                </div>
+                <pre>cd SEMA-KEYCLOAK-THEME
+docker compose up</pre>
+              </div>
+              <p class="code-desc mt-16" data-i18n="kc.launch.firsttime.label"></p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span class="code-lang"><span class="dot"></span>Background (detached)</span>
+                  <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                </div>
+                <pre>docker compose up -d</pre>
+              </div>
+              <div class="info-box info mt-16">
+                <span class="icon-box"><i data-lucide="info"></i></span>
+                <p data-i18n="kc.launch.warn"></p>
+              </div>
+            </div>
+
+            <!-- Import Keycloak Configuration -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.import.title">Import Keycloak Configuration</div>
+              <p data-i18n="kc.import.desc"></p>
+              <div class="info-box info mt-16">
+                <span class="icon-box"><i data-lucide="info"></i></span>
+                <p data-i18n="kc.import.tip"></p>
+              </div>
+              <div class="btn-row mt-16">
+                <a href="assets/keycloak/realm-export.json" download="realm-export.json" class="btn-download">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span data-i18n="kc.import.download.realm.label">Download realm-export.json</span>
+                </a>
+                <a href="assets/keycloak/api-gateway.json" download="api-gateway.json" class="btn-download">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span data-i18n="kc.import.download.client.label">Download api-gateway.json</span>
+                </a>
+              </div>
+              <div class="step-list mt-24">
+                <div class="step-item">
+                  <div class="step-badge">1</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.import.step.1"></p>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">2</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.import.step.2"></p>
+                    <div class="screenshot-grid mt-12">
+                      <div>
+                        <img src="assets/screenshots/kc-create-realm-local.png"
+                             alt="Keycloak realm dropdown — Create realm option"
+                             class="screenshot-img" />
+                        <p class="ss-caption">Realm dropdown (top-left) → Create realm</p>
+                      </div>
+                      <div>
+                        <img src="assets/screenshots/kc-import-realm-local.png"
+                             alt="Create realm form — Browse for realm-export.json"
+                             class="screenshot-img" />
+                        <p class="ss-caption">Browse → select realm-export.json → Import</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">3</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.import.step.3"></p>
+                    <div class="mt-12">
+                      <img src="assets/screenshots/kc-realms-local.png"
+                           alt="Realm selector showing SEMA-UNIVERSE"
+                           class="screenshot-img" />
+                      <p class="ss-caption">Realm selector — SEMA-UNIVERSE now appears</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">4</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.import.step.4"></p>
+                    <div class="screenshot-grid mt-12">
+                      <div>
+                        <img src="assets/screenshots/kc-clients-local.png"
+                             alt="SEMA-UNIVERSE Clients list with Import client button"
+                             class="screenshot-img" />
+                        <p class="ss-caption">Clients list → Import client button (top-right)</p>
+                      </div>
+                      <div>
+                        <img src="assets/screenshots/kc-import-client-local.png"
+                             alt="Import client form — select api-gateway.json"
+                             class="screenshot-img" />
+                        <p class="ss-caption">Browse → select api-gateway.json → Save</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">5</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.import.step.5"></p>
+                    <div class="code-block mt-8">
+                      <div class="code-header">
+                        <span class="code-lang"><span class="dot"></span>SEMA-SSO-api-gateway/.env</span>
+                        <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                      </div>
+                      <pre>KEYCLOAK_CLIENT_SECRET=QKUMvaJIVkuStL8DypxExhO5y6gTH0L2</pre>
+                    </div>
+                    <div class="info-box warn mt-12">
+                      <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+                      <p data-i18n="kc.import.secret.warn"></p>
+                    </div>
+                    <div class="mt-12">
+                      <img src="assets/screenshots/kc-credentials-local.png"
+                           alt="api-gateway Credentials tab — confirming Client secret value"
+                           class="screenshot-img" />
+                      <p class="ss-caption">api-gateway → Credentials tab — secret matches the imported api-gateway.json</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Local reference table -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.local.ref.title">Local Instance Reference</div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th data-i18n="th.setting">Setting</th><th data-i18n="th.value">Value</th></tr></thead>
+                  <tbody>
+                    <tr><td data-i18n="kc.url">Admin Console</td><td><code class="cell-code">http://localhost:8081</code></td></tr>
+                    <tr><td>Credentials</td><td><code class="cell-code">admin</code> / <code class="cell-code">admin</code></td></tr>
+                    <tr><td data-i18n="kc.realm">Realm</td><td><code class="cell-code">SEMA-UNIVERSE</code></td></tr>
+                    <tr><td data-i18n="kc.client">Client ID</td><td><code class="cell-code">api-gateway</code></td></tr>
+                    <tr><td data-i18n="kc.secret.label">Client Secret</td><td><code class="cell-code">QKUMvaJIVkuStL8DypxExhO5y6gTH0L2</code></td></tr>
+                    <tr><td data-i18n="kc.redirect">Callback URL</td><td><code class="cell-code">http://localhost:3001/auth/callback</code></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- OIDC Discovery (local) -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.oidc.title">OIDC Discovery URL</div>
+              <p data-i18n="kc.oidc.desc">Keycloak exposes a standard OIDC discovery document at:</p>
+              <div class="code-block mt-8">
+                <div class="code-header">
+                  <span class="code-lang"><span class="dot"></span>URL — Local DEV</span>
+                  <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                </div>
+                <pre>http://localhost:8081/realms/SEMA-UNIVERSE/.well-known/openid-configuration</pre>
+              </div>
+              <p class="mt-8" data-i18n="kc.oidc.note">The gateway reads the token endpoint, authorization endpoint, and JWKS URI from this document at startup.</p>
+            </div>
+
+            <!-- All local service launch commands -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.services.title">All Local Service Launch Commands</div>
+              <p data-i18n="kc.services.desc"></p>
+              <div class="launch-grid">
+                <div class="launch-item">
+                  <div class="launch-item-name">Keycloak</div>
+                  <div class="launch-item-port">Port 8081</div>
+                  <div class="code-block">
+                    <div class="code-header"><span class="code-lang"><span class="dot"></span>Docker Compose (from SEMA-KEYCLOAK-THEME)</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                    <pre>cd SEMA-KEYCLOAK-THEME
+docker compose up -d</pre>
+                  </div>
+                </div>
+                <div class="launch-item">
+                  <div class="launch-item-name">SEMA-SSO-api-gateway</div>
+                  <div class="launch-item-port">Port 3001</div>
+                  <div class="code-block">
+                    <div class="code-header"><span class="code-lang"><span class="dot"></span>bun</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                    <pre>cd SEMA-SSO-api-gateway
+bun install
+bun run start:dev</pre>
+                  </div>
+                </div>
+                <div class="launch-item">
+                  <div class="launch-item-name">sema-core-service</div>
+                  <div class="launch-item-port">Port 3003</div>
+                  <div class="code-block">
+                    <div class="code-header"><span class="code-lang"><span class="dot"></span>bun</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                    <pre>cd sema-core-service
+bun install
+bunx prisma migrate dev
+bun run start:dev</pre>
+                  </div>
+                </div>
+                <div class="launch-item">
+                  <div class="launch-item-name">sema-core-frontend</div>
+                  <div class="launch-item-port">Port 3000</div>
+                  <div class="code-block">
+                    <div class="code-header"><span class="code-lang"><span class="dot"></span>npm</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                    <pre>cd sema-core-frontend
+npm install
+npm run dev</pre>
+                  </div>
+                </div>
+                <div class="launch-item">
+                  <div class="launch-item-name">sema-order-backend</div>
+                  <div class="launch-item-port">Port 3005</div>
+                  <div class="code-block">
+                    <div class="code-header"><span class="code-lang"><span class="dot"></span>npm</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                    <pre>cd sema-order-backend
+npm install
+npx prisma migrate dev
+npm run start:dev</pre>
+                  </div>
+                </div>
+                <div class="launch-item">
+                  <div class="launch-item-name">sema-bulk-backend</div>
+                  <div class="launch-item-port">Port 3007</div>
+                  <div class="code-block">
+                    <div class="code-header"><span class="code-lang"><span class="dot"></span>npm</span><button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button></div>
+                    <pre>cd sema-bulk-backend
+npm install
+npx prisma migrate dev
+npm run start:dev</pre>
+                  </div>
+                </div>
+              </div>
+              <div class="info-box tip mt-16">
+                <span class="icon-box"><i data-lucide="lightbulb"></i></span>
+                <p data-i18n="kc.services.tip"></p>
+              </div>
+            </div>
+
+          </div><!-- /kc-local -->
+
+          <!-- ────────── DEPLOYED TAB ────────── -->
+          <div class="sub-content" data-id="kc-deployed">
+
+            <!-- Access deployed admin + reference table -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.deployed.title">Deployed Keycloak Admin</div>
+              <p data-i18n="kc.deployed.desc"></p>
+              <div class="info-box info mt-16">
+                <span class="icon-box"><i data-lucide="info"></i></span>
+                <p data-i18n="kc.deployed.realm.note"></p>
+              </div>
+              <div class="table-wrap mt-16">
+                <table>
+                  <thead><tr><th data-i18n="th.setting">Setting</th><th data-i18n="th.value">Value</th></tr></thead>
+                  <tbody>
+                    <tr><td>Admin URL (DEV)</td><td><code class="cell-code">https://YOUR_KC_DOMAIN/admin/SEMA-UNIVERSE-DEV/console</code></td></tr>
+                    <tr><td>Admin URL (STG)</td><td><code class="cell-code">https://YOUR_KC_DOMAIN/admin/SEMA-UNIVERSE-STG/console</code></td></tr>
+                    <tr><td>Admin URL (PROD)</td><td><code class="cell-code">https://YOUR_KC_DOMAIN/admin/SEMA-UNIVERSE/console</code></td></tr>
+                    <tr><td data-i18n="kc.client">Client ID</td><td><code class="cell-code">api-gateway</code></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="screenshot-grid">
+                <div>
+                  <img src="assets/screenshots/kc-realms-deployed.png"
+                       alt="Deployed Keycloak — Manage realms showing DEV, STG, PROD"
+                       class="screenshot-img" />
+                  <p class="ss-caption">Deployed admin → Manage realms</p>
+                </div>
+                <div>
+                  <img src="assets/screenshots/kc-clients-deployed.png"
+                       alt="Deployed SEMA-UNIVERSE-DEV — Clients list showing api-gateway"
+                       class="screenshot-img" />
+                  <p class="ss-caption">SEMA-UNIVERSE-DEV → Clients — api-gateway</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gateway callback URL in deployed Keycloak -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.gw.callback.title">Gateway Callback URL in Keycloak</div>
+              <p data-i18n="kc.gw.callback.desc"></p>
+              <div class="step-list mt-16">
+                <div class="step-item">
+                  <div class="step-badge">1</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.gw.callback.step.1"></p>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">2</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.gw.callback.step.2"></p>
+                    <div class="code-block mt-8">
+                      <div class="code-header">
+                        <span class="code-lang"><span class="dot"></span>Gateway callback URL — replace with your gateway domain</span>
+                        <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                      </div>
+                      <pre>Valid Redirect URIs: https://YOUR_GATEWAY_DOMAIN/auth/callback</pre>
+                    </div>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">3</div>
+                  <div class="step-body"><p class="step-desc" data-i18n="kc.gw.callback.step.3"></p></div>
+                </div>
+              </div>
+              <div class="screenshot-grid">
+                <div>
+                  <img src="assets/screenshots/kc-redirect-deployed.png"
+                       alt="api-gateway Settings — Valid Redirect URIs showing gateway callback"
+                       class="screenshot-img" />
+                  <p class="ss-caption">api-gateway → Settings → Valid Redirect URIs (gateway's callback only)</p>
+                </div>
+                <div>
+                  <img src="assets/screenshots/kc-add-redirect-deployed.png"
+                       alt="api-gateway Settings — adding a new gateway callback URI"
+                       class="screenshot-img" />
+                  <p class="ss-caption">Adding a new gateway callback URL for a new environment</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Get client secret (deployed) -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.secret.title">Get the Client Secret (Gateway .env Only)</div>
+              <p data-i18n="kc.secret.intro"></p>
+              <div class="step-list mt-16">
+                <div class="step-item">
+                  <div class="step-badge">a</div>
+                  <div class="step-body">
+                    <p class="step-desc">Open the Keycloak admin console for the target environment → <strong>Clients</strong> → <strong>api-gateway</strong>.</p>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">b</div>
+                  <div class="step-body"><p class="step-desc" data-i18n="kc.secret.step.b"></p></div>
+                </div>
+                <div class="step-item">
+                  <div class="step-badge">c</div>
+                  <div class="step-body">
+                    <p class="step-desc" data-i18n="kc.secret.step.c"></p>
+                    <div class="code-block">
+                      <div class="code-header">
+                        <span class="code-lang"><span class="dot"></span>SEMA-SSO-api-gateway/.env — per environment</span>
+                        <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                      </div>
+                      <pre>KEYCLOAK_CLIENT_SECRET=&lt;paste the value from the Credentials tab here&gt;</pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-8">
+                <img src="assets/screenshots/kc-credentials-deployed.png"
+                     alt="api-gateway Credentials tab — Client secret (deployed)"
+                     class="screenshot-img" />
+                <p class="ss-caption" data-i18n="ss.secret">api-gateway → Credentials tab → Client secret → eye icon → Copy</p>
+              </div>
+            </div>
+
+            <!-- OIDC Discovery (deployed) -->
+            <div class="card">
+              <div class="card-title" data-i18n="card.kc.oidc.title">OIDC Discovery URL</div>
+              <p data-i18n="kc.oidc.desc">Keycloak exposes a standard OIDC discovery document at:</p>
+              <div class="code-block mt-8">
+                <div class="code-header">
+                  <span class="code-lang"><span class="dot"></span>URL pattern — replace realm name per environment</span>
+                  <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                </div>
+                <pre>https://YOUR_KC_DOMAIN/realms/SEMA-UNIVERSE-DEV/.well-known/openid-configuration
+https://YOUR_KC_DOMAIN/realms/SEMA-UNIVERSE-STG/.well-known/openid-configuration
+https://YOUR_KC_DOMAIN/realms/SEMA-UNIVERSE/.well-known/openid-configuration</pre>
+              </div>
+              <p class="mt-8" data-i18n="kc.oidc.note">The gateway reads the token endpoint, authorization endpoint, and JWKS URI from this document at startup.</p>
+            </div>
+
+          </div><!-- /kc-deployed -->
+        </div><!-- /tabs wrapper -->
+
+        <!-- ── Common: Keycloak Theme ── -->
+        <div class="card">
+          <div class="card-title" data-i18n="card.kc.theme.title">Keycloak Theme</div>
+          <p data-i18n="kc.theme.desc"></p>
+          <div class="info-box tip mt-16">
+            <span class="icon-box"><i data-lucide="lightbulb"></i></span>
+            <p data-i18n="kc.theme.tip"></p>
+          </div>
+        </div>
+
+      </section>

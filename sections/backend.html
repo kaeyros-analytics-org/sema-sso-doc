@@ -1,0 +1,159 @@
+      <!-- ════════════════════════════════════ BACKEND -->
+      <section class="section" id="backend">
+        <div class="page-header">
+          <h1 data-i18n="page.backend.title">Backend Services (NestJS)</h1>
+          <p data-i18n="page.backend.desc">Three NestJS services — all validate the same gateway JWT.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.be.jwt.title">JWT Validation Strategy</div>
+          <p data-i18n="be.jwt.desc">Every NestJS backend implements a <code>JwtStrategy</code> (Passport.js) that validates:</p>
+
+          <p class="code-desc" data-i18n="be.code.module.desc"></p>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>app.module.ts — wire JwtModule + apply GatewayMiddleware globally</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './auth/jwt.strategy';
+import { GatewayMiddleware } from './common/middleware/gateway.middleware';
+
+@Module({
+  imports: [
+    PassportModule,
+    JwtModule.register({
+      secret: process.env.GATEWAY_TOKEN_SECRET, // must match gateway
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
+  providers: [JwtStrategy],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply HMAC verification to ALL routes
+    consumer.apply(GatewayMiddleware).forRoutes('*');
+  }
+}</pre>
+          </div>
+
+          <p class="code-desc" data-i18n="be.code.jwtstrategy.desc"></p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>auth/jwt.strategy.ts — full implementation</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
+import { InjectRedis } from '@liaoliaots/nestjs-redis';
+import { Redis } from 'ioredis';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(
+    private config: ConfigService,
+    @InjectRedis() private redis: Redis,
+  ) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      secretOrKey: config.get('GATEWAY_TOKEN_SECRET'),
+    });
+  }
+
+  async validate(payload: any) {
+    // 1. Verify this token was issued by the gateway (not Keycloak directly)
+    if (payload.iss !== 'api-gateway') {
+      throw new UnauthorizedException('Invalid token issuer');
+    }
+
+    // 2. Verify the audience includes this service
+    const serviceId = this.config.get('SERVICE_ID'); // e.g. "sema-core-service"
+    if (!payload.aud?.includes(serviceId)) {
+      throw new UnauthorizedException('Token not intended for this service');
+    }
+
+    // 3. Check JTI blacklist (set by gateway on logout)
+    const blacklisted = await this.redis.get(`blacklist:${payload.jti}`);
+    if (blacklisted) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
+    return payload; // becomes req.user
+  }
+}</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.be.cred.title">Credential Header</div>
+          <p data-i18n="be.cred.desc">Multi-tenancy is implemented via the <code>x-credential-id</code> header.</p>
+          <p class="code-desc" data-i18n="be.code.cred.desc"></p>
+          <div class="code-block mt-8">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Controller — reading x-credential-id for multi-tenant scoping</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>import { Controller, Get, Headers, Request, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+@Controller('conversations')
+export class ConversationController {
+  constructor(private readonly service: ConversationService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard)      // validates JWT via JwtStrategy
+  async getConversations(
+    @Headers('x-credential-id') credentialId: string,
+    @Request() req,             // req.user = JWT payload from JwtStrategy.validate()
+  ) {
+    // All data is scoped to this specific WhatsApp credential (= one company)
+    return this.service.getForCredential(credentialId, req.user);
+  }
+}</pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.be.notes.title">Service-Specific Notes</div>
+          <div class="sub-tabs">
+            <button class="sub-tab" data-target="core-svc" data-i18n="tab.core.svc">sema-core-service</button>
+            <button class="sub-tab" data-target="order-svc" data-i18n="tab.order.svc">sema-order-backend</button>
+            <button class="sub-tab" data-target="bulk-svc" data-i18n="tab.bulk.svc">sema-bulk-backend</button>
+          </div>
+          <div class="sub-content" data-id="core-svc">
+            <p data-i18n="be.core.desc"></p>
+          </div>
+          <div class="sub-content" data-id="order-svc">
+            <p data-i18n="be.order.desc"></p>
+          </div>
+          <div class="sub-content" data-id="bulk-svc">
+            <p data-i18n="be.bulk.desc"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.be.hmac.title">Gateway Middleware Verification</div>
+          <p data-i18n="be.hmac.desc">Beyond JWT validation, backends verify the HMAC signature.</p>
+          <div class="code-block mt-16">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Gateway middleware — NestJS</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>const timestamp  = req.headers['x-gateway-timestamp'] as string;
+const signature  = req.headers['x-gateway-signature'] as string;
+
+// Replay attack: reject if timestamp older than 5 minutes
+if (Date.now() - parseInt(timestamp) > 300_000) throw new UnauthorizedException();
+
+const expected = createHmac('sha256', process.env.GATEWAY_SHARED_SECRET)
+  .update(`${timestamp}:${req.method}:${req.path}`)
+  .digest('hex');
+
+if (signature !== expected) throw new UnauthorizedException();</pre>
+          </div>
+        </div>
+      </section>
