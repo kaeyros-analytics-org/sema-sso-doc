@@ -1,0 +1,953 @@
+name: 🔒 Security CI Pipeline 
+
+on:
+  pull_request:
+    branches:
+      - test
+      - main
+      - staging
+      - production
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type de scan à exécuter'
+        required: false
+        type: choice
+        options:
+          - 'all'
+          - 'secrets-only'
+          - 'dependencies-only'
+          - 'infrastructure-only'
+        default: 'all'
+      target_branch:
+        description: 'Branche à scanner (optionnel - utilise la branche courante si vide)'
+        required: false
+        type: string
+        default: 'develop'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+  issues: write
+  pull-requests: write
+  checks: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: kaeyros-analytics-org
+  REPO_NAME_FULL: ${{ github.repository }}
+  REPO_NAME: ${{ github.event.repository.name }}
+
+jobs:
+
+  gitleaks-scan:
+    name: Gitleaks - Scan des secrets
+    runs-on: self-hosted
+    outputs:
+        secrets-found: ${{ steps.check-secrets.outputs.found }}
+        secrets-count: ${{ steps.check-secrets.outputs.count }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+
+      - name: Run Gitleaks
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+      - name: Check for secrets
+        id: check-secrets
+        run: |
+            if [ -f "results.sarif" ]; then
+            COUNT=$(jq '.runs[0].results | length' results.sarif 2>/dev/null || echo "0")
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+            if [ "$COUNT" -gt 0 ]; then
+                echo "found=true" >> $GITHUB_OUTPUT
+                echo " Gitleaks found $COUNT secret(s)"
+            else
+                echo "found=false" >> $GITHUB_OUTPUT
+                echo " No secrets found"
+            fi
+            else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+            fi
+
+      - name: Display Gitleaks SARIF content
+        if: always() && hashFiles('results.sarif') != ''
+        run: |
+            echo " Gitleaks SARIF Results:"
+            [ -f "results.sarif" ] && jq '.' results.sarif || echo "No SARIF output"
+
+      - name: Upload Gitleaks results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+            name: gitleaks-results
+            path: results.sarif
+            if-no-files-found: ignore
+
+  trufflehog-scan:
+    name:  TruffleHog - Scan des secrets
+    runs-on: self-hosted
+
+    outputs:
+      secrets-found: ${{ steps.check-secrets.outputs.found }}
+      secrets-count: ${{ steps.check-secrets.outputs.count }}
+
+    steps:
+      - name:  Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name:  Run TruffleHog (Docker)
+        run: |
+          echo " Running TruffleHog..."
+          docker run --rm -v $PWD:/repo ghcr.io/trufflesecurity/trufflehog:latest \
+            git file:///repo --json > trufflehog.json || true 
+
+      - name:  Display TruffleHog JSON Results
+        if: always()
+        run: |
+          echo " TruffleHog JSON Output ( all lines):"
+          [ -f trufflehog.json ] && cat  trufflehog.json || echo "No output."
+
+      - name:  Upload TruffleHog Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trufflehog-results
+          path: |
+            trufflehog.json
+            trufflehog.sarif
+
+  trivy-dependencies:
+    name: Trivy - Scan de dépendances
+    runs-on: self-hosted
+    outputs:
+      vulnerabilities-found: ${{ steps.check-vulns.outputs.found }}
+      vulnerabilities-count: ${{ steps.check-vulns.outputs.count }}
+      critical-count: ${{ steps.check-vulns.outputs.critical }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (filesystem)
+        id: trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-deps.sarif'
+        continue-on-error: true
+
+      - name: Check for vulnerabilities
+        id: check-vulns
+        run: |
+          if [ -f "trivy-deps.sarif" ]; then
+            TOTAL=$(jq '.runs[0].results | length' trivy-deps.sarif 2>/dev/null || echo "0")
+            CRITICAL=$(jq '[.runs[0].results[] | select(.level == "error")] | length' trivy-deps.sarif 2>/dev/null || echo "0")
+            echo "count=$TOTAL" >> $GITHUB_OUTPUT
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            if [ "$TOTAL" -gt 0 ]; then
+              echo "found=true" >> $GITHUB_OUTPUT
+              echo " Found $TOTAL vulnerabilities ($CRITICAL critical)"
+            else
+              echo "found=false" >> $GITHUB_OUTPUT
+              echo " No vulnerabilities found"
+            fi
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+            echo "critical=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display Trivy Dependencies SARIF content
+        if: always() && hashFiles('trivy-deps.sarif') != ''
+        run: |
+          echo " Trivy Dependencies SARIF Results:"
+          cat trivy-deps.sarif | jq '.' || cat trivy-deps.sarif
+
+      - name: Upload Trivy Dependencies results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-deps-results
+          path: trivy-deps.sarif
+          if-no-files-found: ignore
+
+  trivy-iac-scan:
+    name: Trivy + Checkov - Scan IaC
+    runs-on: self-hosted
+    outputs:
+      issues-found: ${{ steps.check-issues.outputs.found }}
+      issues-count: ${{ steps.check-issues.outputs.count }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy IaC scanner
+        id: trivy-iac
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-iac.sarif'
+        continue-on-error: true
+
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,kubernetes,terraform
+          output_format: sarif
+          output_file_path: checkov.sarif
+        continue-on-error: true
+
+      - name: Check for IaC issues
+        id: check-issues
+        run: |
+          TRIVY_COUNT=0
+          CHECKOV_COUNT=0
+          
+          if [ -f "trivy-iac.sarif" ]; then
+            TRIVY_COUNT=$(jq '.runs[0].results | length' trivy-iac.sarif 2>/dev/null || echo "0")
+          fi
+          
+          if [ -f "checkov.sarif" ]; then
+            CHECKOV_COUNT=$(jq '.runs[0].results | length' checkov.sarif 2>/dev/null || echo "0")
+          fi
+          
+          TOTAL=$((TRIVY_COUNT + CHECKOV_COUNT))
+          echo "count=$TOTAL" >> $GITHUB_OUTPUT
+          
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo " Found $TOTAL IaC issues (Trivy: $TRIVY_COUNT, Checkov: $CHECKOV_COUNT)"
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo " No IaC issues found"
+          fi
+
+      - name: Display scan results
+        if: always()
+        run: |
+          if [ -f "trivy-iac.sarif" ]; then
+            echo " Trivy IaC Results:"
+            cat trivy-iac.sarif | jq '.' || cat trivy-iac.sarif
+          fi
+          if [ -f "checkov.sarif" ]; then
+            echo " Checkov Results:"
+            cat checkov.sarif | jq '.' || cat checkov.sarif
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-iac-results
+          path: trivy-iac.sarif
+          if-no-files-found: ignore
+
+      - name: Upload Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: checkov.sarif
+          if-no-files-found: ignore
+
+  trivy-image-scan:
+    name: Trivy - Scan d'image Docker
+    runs-on: self-hosted
+    outputs:
+      vulnerabilities-found: ${{ steps.check-vulns.outputs.found }}
+      vulnerabilities-count: ${{ steps.check-vulns.outputs.count }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set repository variables
+        run: |
+          REPO_NAME_LOWER=$(echo "${{ env.REPO_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "REPO_NAME_LOWER=$REPO_NAME_LOWER" >> $GITHUB_ENV
+
+      - name: Download image artifact
+        id: download-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-info
+        continue-on-error: true
+
+      - name: Read image name from artifact
+        id: read-image
+        run: |
+          if [ -f "image.txt" ]; then
+            IMAGE_INFO=$(cat image.txt)
+            IMAGE_NAME=$(echo "$IMAGE_INFO" | cut -d':' -f2-)
+            echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+            echo "ARTIFACT_FOUND=true" >> $GITHUB_ENV
+            echo " Using image from artifact: $IMAGE_NAME"
+          else
+            echo "ARTIFACT_FOUND=false" >> $GITHUB_ENV
+          fi
+
+      - name: Fallback - Set environment variables
+        if: env.ARTIFACT_FOUND == 'false'
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            ENVIRONMENT=develop
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            ENVIRONMENT=staging
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            ENVIRONMENT=production
+          else
+            ENVIRONMENT=develop
+          fi
+
+          COMMIT_VERSION=$(git rev-parse --short HEAD)
+          LATEST_IMAGE="${REGISTRY}/${OWNER}/${REPO_NAME_LOWER}-${ENVIRONMENT}:latest"
+          echo "LATEST_IMAGE=$LATEST_IMAGE" >> $GITHUB_ENV
+
+      - name: Authenticate to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.TOKEN }}
+        continue-on-error: true
+
+      - name: Determine final image
+        run: |
+          if [[ -n "${{ env.IMAGE_NAME }}" ]]; then
+            FINAL_IMAGE="${{ env.IMAGE_NAME }}"
+          else
+            FINAL_IMAGE="${{ env.LATEST_IMAGE }}"
+          fi
+          echo "FINAL_IMAGE=$FINAL_IMAGE" >> $GITHUB_ENV
+
+      - name: Pull and scan image
+        id: pull-image
+        run: |
+          if docker pull ${{ env.FINAL_IMAGE }} 2>&1; then
+            echo "IMAGE_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "IMAGE_EXISTS=false" >> $GITHUB_ENV
+          fi
+        continue-on-error: true
+
+      - name: Run Trivy on image
+        if: env.IMAGE_EXISTS == 'true'
+        id: trivy-image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.FINAL_IMAGE }}
+          format: 'sarif'
+          output: 'trivy-image.sarif'
+        continue-on-error: true
+
+      - name: Fallback - Scan Dockerfile
+        if: env.IMAGE_EXISTS == 'false' && hashFiles('Dockerfile') != ''
+        id: trivy-docker
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'Dockerfile'
+          format: 'sarif'
+          output: 'trivy-docker.sarif'
+        continue-on-error: true
+
+      - name: Check for vulnerabilities
+        id: check-vulns
+        run: |
+          if [ -f "trivy-image.sarif" ]; then
+            COUNT=$(jq '.runs[0].results | length' trivy-image.sarif 2>/dev/null || echo "0")
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+            if [ "$COUNT" -gt 0 ]; then
+              echo "found=true" >> $GITHUB_OUTPUT
+              echo " Found $COUNT image vulnerabilities"
+            else
+              echo "found=false" >> $GITHUB_OUTPUT
+              echo " No image vulnerabilities"
+            fi
+          elif [ -f "trivy-docker.sarif" ]; then
+            COUNT=$(jq '.runs[0].results | length' trivy-docker.sarif 2>/dev/null || echo "0")
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+            if [ "$COUNT" -gt 0 ]; then
+              echo "found=true" >> $GITHUB_OUTPUT
+              echo " Found $COUNT Dockerfile issues"
+            else
+              echo "found=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-results
+          path: |
+            trivy-image.sarif
+            trivy-docker.sarif
+          if-no-files-found: ignore
+
+  sonarqube-scan:
+    name: SonarQube - Analyse qualité et sécurité
+    runs-on: self-hosted
+    outputs:
+      quality-gate: ${{ steps.check-quality.outputs.status }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+        continue-on-error: true
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: SonarQube Scan
+        id: sonar
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+      - name: Check quality gate
+        id: check-quality
+        run: |
+          if [ "${{ steps.sonar.outcome }}" == "success" ]; then
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo " Quality gate passed"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo " Quality gate failed"
+          fi
+
+  check-results:
+    name: Vérification et agrégation des résultats
+    runs-on: self-hosted
+    needs: [gitleaks-scan, trufflehog-scan, trivy-dependencies, trivy-iac-scan, trivy-image-scan, sonarqube-scan]
+    if: always()
+    outputs:
+      security-status: ${{ steps.aggregate.outputs.status }}
+      critical-issues: ${{ steps.aggregate.outputs.critical-issues }}
+      has-secrets: ${{ steps.aggregate.outputs.has-secrets }}
+      has-vulnerabilities: ${{ steps.aggregate.outputs.has-vulnerabilities }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: security-results
+        continue-on-error: true
+
+      - name: Parse security results
+        if: always()
+        id: parse-results
+        run: |
+          echo "🔍 Parsing security results..."
+          RESULTS_FILE="parsed-results.md"
+          > $RESULTS_FILE
+
+          # Gitleaks
+          if [ -f "security-results/gitleaks-results/results.sarif" ]; then
+            echo "### 🔐 Secrets Détectés (Gitleaks)" >> $RESULTS_FILE
+            echo "" >> $RESULTS_FILE
+            SECRETS_COUNT=$(jq '.runs[0].results | length' security-results/gitleaks-results/results.sarif 2>/dev/null || echo "0")
+            if [ "$SECRETS_COUNT" -gt 0 ]; then
+              echo "| Type | Fichier | Ligne | Description |" >> $RESULTS_FILE
+              echo "|------|---------|-------|-------------|" >> $RESULTS_FILE
+              jq -r '.runs[0].results[] | "| \(.ruleId // "Secret") | \(.locations[0].physicalLocation.artifactLocation.uri // "N/A") | \(.locations[0].physicalLocation.region.startLine // "N/A") | \(.message.text // "Secret détecté") |"' \
+                security-results/gitleaks-results/results.sarif >> $RESULTS_FILE 2>/dev/null || echo "| Erreur | - | - | - |" >> $RESULTS_FILE
+              echo "" >> $RESULTS_FILE
+              echo "**Total: $SECRETS_COUNT secret(s) détecté(s)** " >> $RESULTS_FILE
+            else
+              echo " Aucun secret détecté" >> $RESULTS_FILE
+            fi
+            echo "" >> $RESULTS_FILE
+          fi
+
+
+
+          RESULTS_FILE="security-results/summary.md"
+          TRUFFLE_FILE="security-results/trufflehog-results/trufflehog.json"
+
+          mkdir -p "$(dirname "$RESULTS_FILE")"
+
+          echo "###  Secrets Vérifiés (TruffleHog)" >> "$RESULTS_FILE"
+          echo "" >> "$RESULTS_FILE"
+
+          if [ -f "$TRUFFLE_FILE" ]; then
+            echo " Fichier trouvé : $TRUFFLE_FILE"
+            
+            # Compte les objets JSON (format JSONL)
+            TRUFFLE_COUNT=$(jq -s 'length' "$TRUFFLE_FILE")
+
+            if [ "$TRUFFLE_COUNT" -gt 0 ]; then
+              echo "| Type | Fichier | Ligne | Valeur | Statut |" >> "$RESULTS_FILE"
+              echo "|------|----------|-------|---------|--------|" >> "$RESULTS_FILE"
+
+              jq -s -r '.[] | "| \(.DetectorName // "N/A") | \(.SourceMetadata.Data.Git.file // "N/A") | \(.SourceMetadata.Data.Git.line // "N/A") | \(.Raw // "N/A") | ✓ Vérifié |"' \
+                "$TRUFFLE_FILE" >> "$RESULTS_FILE"
+
+              echo "" >> "$RESULTS_FILE"
+              echo "**Total: $TRUFFLE_COUNT secret(s) vérifié(s)** 🚨" >> "$RESULTS_FILE"
+              echo "" >> "$RESULTS_FILE"
+              echo "> 🔴 **CRITIQUE:** Ces secrets sont ACTIFS et doivent être révoqués IMMÉDIATEMENT !" >> "$RESULTS_FILE"
+            else
+              echo " Aucun secret vérifié" >> "$RESULTS_FILE"
+            fi
+          else
+            echo " Fichier $TRUFFLE_FILE introuvable." >> "$RESULTS_FILE"
+          fi
+
+
+
+
+
+
+
+          # Trivy Dependencies
+          if [ -f "security-results/trivy-deps-results/trivy-deps.sarif" ]; then
+            echo "###  Vulnérabilités des Dépendances" >> $RESULTS_FILE
+            echo "" >> $RESULTS_FILE
+            DEPS_COUNT=$(jq '.runs[0].results | length' security-results/trivy-deps-results/trivy-deps.sarif 2>/dev/null || echo "0")
+            if [ "$DEPS_COUNT" -gt 0 ]; then
+              echo "| Sévérité | Package | CVE |" >> $RESULTS_FILE
+              echo "|----------|---------|-----|" >> $RESULTS_FILE
+              jq -r '.runs[0].results[] | "| \(.level | ascii_upcase) | \(.locations[0].physicalLocation.artifactLocation.uri // "N/A") | \(.ruleId // "N/A") |"' \
+                security-results/trivy-deps-results/trivy-deps.sarif >> $RESULTS_FILE 2>/dev/null
+              echo "" >> $RESULTS_FILE
+              echo "**Total: $DEPS_COUNT vulnérabilité(s)** " >> $RESULTS_FILE
+            else
+              echo " Aucune vulnérabilité" >> $RESULTS_FILE
+            fi
+            echo "" >> $RESULTS_FILE
+          fi
+
+          # Trivy IaC
+          if [ -f "security-results/trivy-iac-results/trivy-iac.sarif" ]; then
+            echo "### 🏗️ Problèmes d'Infrastructure (Trivy)" >> $RESULTS_FILE
+            echo "" >> $RESULTS_FILE
+            IAC_COUNT=$(jq '.runs[0].results | length' security-results/trivy-iac-results/trivy-iac.sarif 2>/dev/null || echo "0")
+            if [ "$IAC_COUNT" -gt 0 ]; then
+              echo "| Sévérité | Fichier | Règle |" >> $RESULTS_FILE
+              echo "|----------|---------|-------|" >> $RESULTS_FILE
+              jq -r '.runs[0].results[] | "| \(.level | ascii_upcase) | \(.locations[0].physicalLocation.artifactLocation.uri // "N/A") | \(.ruleId // "N/A") |"' \
+                security-results/trivy-iac-results/trivy-iac.sarif >> $RESULTS_FILE 2>/dev/null
+              echo "" >> $RESULTS_FILE
+              echo "**Total: $IAC_COUNT problème(s)** " >> $RESULTS_FILE
+            else
+              echo " Aucun problème" >> $RESULTS_FILE
+            fi
+            echo "" >> $RESULTS_FILE
+          fi
+
+          # Checkov
+          if [ -f "security-results/checkov-results/checkov.sarif" ]; then
+            echo "###  Vérifications Infrastructure (Checkov)" >> $RESULTS_FILE
+            echo "" >> $RESULTS_FILE
+            CHECKOV_COUNT=$(jq '.runs[0].results | length' security-results/checkov-results/checkov.sarif 2>/dev/null || echo "0")
+            if [ "$CHECKOV_COUNT" -gt 0 ]; then
+              echo "| Sévérité | Fichier | Check ID |" >> $RESULTS_FILE
+              echo "|----------|---------|----------|" >> $RESULTS_FILE
+              jq -r '.runs[0].results[] | "| \(.level | ascii_upcase) | \(.locations[0].physicalLocation.artifactLocation.uri // "N/A") | \(.ruleId // "N/A") |"' \
+                security-results/checkov-results/checkov.sarif >> $RESULTS_FILE 2>/dev/null
+              echo "" >> $RESULTS_FILE
+              echo "**Total: $CHECKOV_COUNT check(s) échoué(s)** " >> $RESULTS_FILE
+            else
+              echo " Tous les checks passés" >> $RESULTS_FILE
+            fi
+            echo "" >> $RESULTS_FILE
+          fi
+
+          # Trivy Image
+          if [ -f "security-results/trivy-image-results/trivy-image.sarif" ]; then
+            echo "###  Vulnérabilités de l'Image Docker" >> $RESULTS_FILE
+            echo "" >> $RESULTS_FILE
+            IMAGE_COUNT=$(jq '.runs[0].results | length' security-results/trivy-image-results/trivy-image.sarif 2>/dev/null || echo "0")
+            if [ "$IMAGE_COUNT" -gt 0 ]; then
+              echo "| Sévérité | Package | CVE |" >> $RESULTS_FILE
+              echo "|----------|---------|-----|" >> $RESULTS_FILE
+              jq -r '.runs[0].results[] | "| \(.level | ascii_upcase) | \(.locations[0].physicalLocation.artifactLocation.uri // "N/A") | \(.ruleId // "N/A") |"' \
+                security-results/trivy-image-results/trivy-image.sarif >> $RESULTS_FILE 2>/dev/null
+              echo "" >> $RESULTS_FILE
+              echo "**Total: $IMAGE_COUNT vulnérabilité(s)** " >> $RESULTS_FILE
+            else
+              echo " Aucune vulnérabilité" >> $RESULTS_FILE
+            fi
+            echo "" >> $RESULTS_FILE
+          fi
+
+          cat $RESULTS_FILE
+          echo "RESULTS_CONTENT<<EOF" >> $GITHUB_ENV
+          cat $RESULTS_FILE >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Aggregate security results
+        id: aggregate
+        run: |
+          echo " Aggregating all security results..."
+
+          CRITICAL_ISSUES=0
+          HAS_SECRETS=false
+          HAS_VULNERABILITIES=false
+          STATUS="success"
+          FAILED_JOBS=""
+
+          # Check Gitleaks
+          GITLEAKS_FOUND="${{ needs.gitleaks-scan.outputs.secrets-found }}"
+          if [ "$GITLEAKS_FOUND" == "true" ]; then
+            echo "❌ Gitleaks: Secrets detected"
+            CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
+            HAS_SECRETS=true
+            STATUS="failure"
+            FAILED_JOBS="${FAILED_JOBS}gitleaks, "
+          fi
+
+          # Check TruffleHog
+          TRUFFLE_FOUND="${{ needs.trufflehog-scan.outputs.secrets-found }}"
+          if [ "$TRUFFLE_FOUND" == "true" ]; then
+            echo "❌ TruffleHog: Verified secrets detected"
+            CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
+            HAS_SECRETS=true
+            STATUS="failure"
+            FAILED_JOBS="${FAILED_JOBS}trufflehog, "
+          fi
+
+          # Check Trivy Dependencies
+          DEPS_FOUND="${{ needs.trivy-dependencies.outputs.vulnerabilities-found }}"
+          DEPS_CRITICAL="${{ needs.trivy-dependencies.outputs.critical-count }}"
+          if [ "$DEPS_FOUND" == "true" ]; then
+            echo " Trivy Dependencies: $DEPS_CRITICAL critical vulnerabilities"
+            if [ "$DEPS_CRITICAL" != "0" ]; then
+              CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
+              HAS_VULNERABILITIES=true
+              STATUS="failure"
+              FAILED_JOBS="${FAILED_JOBS}trivy-deps, "
+            fi
+          fi
+
+          # Check Trivy IaC
+          IAC_FOUND="${{ needs.trivy-iac-scan.outputs.issues-found }}"
+          if [ "$IAC_FOUND" == "true" ]; then
+            echo " Trivy IaC: Infrastructure issues detected"
+            CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
+            STATUS="failure"
+            FAILED_JOBS="${FAILED_JOBS}trivy-iac, "
+          fi
+
+          # Check Trivy Image
+          IMAGE_FOUND="${{ needs.trivy-image-scan.outputs.vulnerabilities-found }}"
+          if [ "$IMAGE_FOUND" == "true" ]; then
+            echo " Trivy Image: Image vulnerabilities detected"
+            CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
+            HAS_VULNERABILITIES=true
+            STATUS="failure"
+            FAILED_JOBS="${FAILED_JOBS}trivy-image, "
+          fi
+
+          # Check SonarQube
+          SONAR_STATUS="${{ needs.sonarqube-scan.outputs.quality-gate }}"
+          if [ "$SONAR_STATUS" == "failed" ]; then
+            echo " SonarQube: Quality gate failed"
+            FAILED_JOBS="${FAILED_JOBS}sonarqube, "
+          fi
+
+          FAILED_JOBS=${FAILED_JOBS%, }
+
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+          echo "critical-issues=${CRITICAL_ISSUES}" >> $GITHUB_OUTPUT
+          echo "has-secrets=${HAS_SECRETS}" >> $GITHUB_OUTPUT
+          echo "has-vulnerabilities=${HAS_VULNERABILITIES}" >> $GITHUB_OUTPUT
+          echo "failed-jobs=${FAILED_JOBS}" >> $GITHUB_OUTPUT
+
+          echo " Security Scan Summary:"
+          echo "- Status: ${STATUS}"
+          echo "- Critical Issues: ${CRITICAL_ISSUES}"
+          echo "- Has Secrets: ${HAS_SECRETS}"
+          echo "- Has Vulnerabilities: ${HAS_VULNERABILITIES}"
+          echo "- Failed Jobs: ${FAILED_JOBS}"
+
+      - name: Generate detection timestamp
+        id: timestamp
+        run: |
+          DETECTION_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "detection-time=$DETECTION_TIME" >> $GITHUB_OUTPUT
+          echo "================================================="
+          echo "Removing built Docker images to free up space..."
+          docker system prune -a --volumes
+          docker builder prune -af || true
+
+      - name: Create security issue
+        if: steps.aggregate.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const criticalIssues = ${{ steps.aggregate.outputs.critical-issues }};
+            const failedJobs = '${{ steps.aggregate.outputs.failed-jobs }}';
+            const hasSecrets = '${{ steps.aggregate.outputs.has-secrets }}' === 'true';
+            const hasVulns = '${{ steps.aggregate.outputs.has-vulnerabilities }}' === 'true';
+            const resultsContent = process.env.RESULTS_CONTENT || 'Aucun résultat disponible';
+            const detectionTime = '${{ steps.timestamp.outputs.detection-time }}';
+
+            let severity = 'medium';
+            let severityEmoji = '🟡';
+            if (hasSecrets) {
+              severity = 'critical';
+              severityEmoji = '🔴';
+            } else if (criticalIssues >= 3) {
+              severity = 'high';
+              severityEmoji = '🟠';
+            }
+
+            const branchName = '${{ github.head_ref }}' || '${{ github.ref_name }}';
+            const baseBranch = '${{ github.base_ref }}' || 'main';
+            const prNumber = '${{ github.event.pull_request.number }}' || 'N/A';
+
+            const issueTitle = `🚨 Security Alert - ${severityEmoji} ${severity.toUpperCase()} - Branch: ${branchName}`;
+            const issueBody = `
+            ## 🚨 Alerte de Sécurité - ${severityEmoji} ${severity.toUpperCase()}
+
+            **Repository:** ${{ github.repository }}
+            **Branch:** \`${branchName}\` → \`${baseBranch}\`
+            **Pull Request:** ${prNumber !== 'N/A' ? '#' + prNumber : 'N/A'}
+            **Severity:** ${severityEmoji} **${severity.toUpperCase()}**
+            **Problèmes Critiques:** ${criticalIssues}
+            **Scans Échoués:** ${failedJobs}
+            **Date:** ${detectionTime}
+
+            ${hasSecrets ? '### 🔴 SECRETS DÉTECTÉS - ACTION IMMÉDIATE REQUISE\n\nDes secrets ou credentials ont été détectés dans le code. Ils doivent être révoqués IMMÉDIATEMENT.\n' : ''}
+
+            ---
+
+            ##  Résultats Détaillés
+
+            ${resultsContent}
+
+            ---
+
+            ## 🔧 Actions Requises
+
+            ### ${hasSecrets ? '🔴 PRIORITÉ CRITIQUE' : '🟠 PRIORITÉ HAUTE'}
+            ${hasSecrets ? `
+            1.  **RÉVOQUER** immédiatement tous les secrets détectés
+            2.  **SUPPRIMER** les secrets du code
+            3.  **NETTOYER** l'historique Git si nécessaire
+            4.  **METTRE À JOUR** avec des variables d'environnement sécurisées
+            ` : ''}
+            ${hasVulns ? `
+            1.  **METTRE À JOUR** les dépendances vulnérables
+            2.  **CORRIGER** les problèmes d'infrastructure
+            3.  **SCANNER** à nouveau l'image Docker
+            ` : ''}
+            ${criticalIssues > 0 ? `
+            - [ ] Tous les problèmes critiques sont corrigés
+            - [ ] Les scans passent avec succès
+            - [ ] Le code est prêt pour le merge
+            ` : ''}
+
+            ---
+
+            ## Informations
+
+            **Workflow:** [Voir les logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            **Commit:** \`${{ github.sha }}\`
+            **Auteur:** @${{ github.actor }}
+
+            ---
+
+            >  **ATTENTION:** Le merge est **BLOQUÉ** jusqu'à résolution complète.
+            > 
+            *Généré automatiquement par Security CI Pipeline*
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['security', severity, 'automated', '🚨-security-alert']
+            });
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.aggregate.outputs.status }}';
+            const criticalIssues = '${{ steps.aggregate.outputs.critical-issues }}';
+            const hasSecrets = '${{ steps.aggregate.outputs.has-secrets }}' === 'true';
+            const failedJobs = '${{ steps.aggregate.outputs.failed-jobs }}';
+            const resultsContent = process.env.RESULTS_CONTENT || 'Aucun résultat disponible';
+
+            let commentBody;
+
+            if (status === 'failure') {
+              commentBody = `
+              ## 🚨 Échec du Scan de Sécurité
+
+              ### ⛔ MERGE BLOQUÉ
+
+              **Problèmes Critiques:** ${criticalIssues}
+              **Scans Échoués:** ${failedJobs}
+
+              ${hasSecrets ? '### 🔴 SECRETS DÉTECTÉS - ACTION IMMÉDIATE\n\nDes credentials actifs ont été trouvés. Ils doivent être révoqués IMMÉDIATEMENT avant tout merge.\n' : ''}
+
+              ---
+
+              ##  Détails
+
+              ${resultsContent}
+
+              ---
+
+              ## 🔧 Que faire ?
+
+              ${hasSecrets ? `
+              ### 🔴 CRITIQUE - Secrets
+              1. Révoquez tous les secrets détectés (AWS, MongoDB, etc.)
+              2. Supprimez-les du code
+              3. Utilisez des variables d'environnement sécurisées
+              ` : ''}
+
+              ### Actions
+              1. Corrigez tous les problèmes listés ci-dessus
+              2. Commit et push vos corrections
+              3. La pipeline se relancera automatiquement
+              4. Le merge sera débloqué une fois tous les checks verts 
+
+              ---
+
+              **Logs:** [Voir détails](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              `;
+            } else {
+              commentBody = `
+              ##  Scan de Sécurité Réussi
+
+              ### 🎉 Tous les scans ont réussi !
+
+              | Scan | Status |
+              |------|--------|
+              |  Gitleaks |  Passed |
+              |  TruffleHog |  Passed |
+              |  Trivy Dependencies |  Passed |
+              |  Trivy IaC |  Passed |
+              |  Trivy Image |  Passed |
+              |  SonarQube |  Passed |
+
+              ---
+
+              🚀 **Cette PR peut être mergée** (du point de vue sécurité)
+
+              **Logs:** [Voir détails](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+              `;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+
+      - name: Fail if security issues detected
+        if: steps.aggregate.outputs.status == 'failure'
+        run: |
+          echo "🚨 SECURITY ISSUES DETECTED"
+          echo "Critical Issues: ${{ steps.aggregate.outputs.critical-issues }}"
+          echo "Failed Jobs: ${{ steps.aggregate.outputs.failed-jobs }}"
+          echo ""
+          echo "This will block the merge in the security-gate job"
+          exit 1
+
+
+
+
+  security-gate:
+    name: 🔒 Security Gate - Blocage Merge
+    runs-on: self-hosted
+    needs: [check-results]
+    if: always()
+    steps:
+      - name: Check security status
+        run: |
+          STATUS="${{ needs.check-results.outputs.security-status }}"
+          CRITICAL="${{ needs.check-results.outputs.critical-issues }}"
+          HAS_SECRETS="${{ needs.check-results.outputs.has-secrets }}"
+          
+          echo "═══════════════════════════════════════"
+          echo "🔍 Security Gate - Final Check"
+          echo "═══════════════════════════════════════"
+          echo "Status: $STATUS"
+          echo "Critical Issues: $CRITICAL"
+          echo "Has Secrets: $HAS_SECRETS"
+          echo "═══════════════════════════════════════"
+          
+          if [[ "$STATUS" == "failure" ]]; then
+            echo ""
+            echo "╔═══════════════════════════════════════╗"
+            echo "║  🚨 SECURITY CHECK FAILED - BLOCKED 🚨║"
+            echo "╚═══════════════════════════════════════╝"
+            echo ""
+            echo "❌ Found $CRITICAL critical security issue(s)"
+            
+            if [[ "$HAS_SECRETS" == "true" ]]; then
+              echo ""
+              echo "🔴 CRITICAL: Active secrets detected!"
+              echo "   → These must be revoked immediately"
+            fi
+            
+            echo ""
+            echo "⛔ MERGE IS BLOCKED"
+            echo ""
+            echo "Required actions:"
+            echo "  1. Fix all security issues"
+            echo "  2. Revoke any exposed secrets"
+            echo "  3. Re-run security pipeline"
+            echo "  4. Wait for all checks to pass"
+            echo ""
+            exit 1
+          else
+            echo ""
+            echo "╔═══════════════════════════════════════╗"
+            echo "║    SECURITY CHECK PASSED - APPROVED   ║"
+            echo "╚═══════════════════════════════════════╝"
+            echo ""
+            echo " All security scans passed"
+            echo " No critical vulnerabilities"
+            echo " No secrets detected"
+            echo ""
+            echo "🎉 This PR is ready to merge"
+            echo ""
+            exit 0
+          fi
+
+          

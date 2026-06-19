@@ -1,0 +1,40 @@
+name: Build & Push oim-doc Prod Image
+
+on:
+  push:
+    branches:
+      - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: kaeyros-analytics-org/sema-sso-doc
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # OBLIGATOIRE pour GHCR
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set Git Commit SHA as Tag
+        run: echo "IMAGE_TAG_PROD=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t $REGISTRY/$IMAGE_NAME:${{ env.IMAGE_TAG_PROD }} \
+            -t $REGISTRY/$IMAGE_NAME:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push $REGISTRY/$IMAGE_NAME:${{ env.IMAGE_TAG_PROD }}
+          docker push $REGISTRY/$IMAGE_NAME:latest
