@@ -220,6 +220,189 @@ export class GatewayMiddleware implements NestMiddleware {
         </div>
 
         <div class="card">
+          <div class="card-title" data-i18n="card.gw.headers.title">Custom Request Headers — CORS &amp; Forwarding</div>
+          <p data-i18n="gw.headers.desc">If your backend service needs a custom HTTP header sent by the frontend (e.g. <code>x-tenant-id</code>, <code>x-workspace-id</code>), you must register it in <strong>two separate places</strong> in the gateway source code. Missing either step causes a different failure.</p>
+          <div class="info-box warn mt-16">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="gw.headers.warn">This is a frequent integration trap. The CORS fix and the forwarding fix are independent — each one alone is not enough. <strong>Both must be done together.</strong></p>
+          </div>
+          <div class="step-list mt-16">
+            <div class="step-item">
+              <div class="step-badge">1</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.headers.step.1">Add the header name to <code>DEFAULT_ALLOWED_HEADERS</code> in <code>src/common/constants/security.constants.ts</code>. This tells the browser the header is allowed in CORS preflight responses. Without this, the browser blocks the request before it reaches any server.</p>
+                <div class="code-block mt-8">
+                  <div class="code-header">
+                    <span class="code-lang"><span class="dot"></span>src/common/constants/security.constants.ts</span>
+                    <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                  </div>
+                  <pre>DEFAULT_ALLOWED_HEADERS: [
+  'Content-Type',
+  'Authorization',
+  'Cookie',
+  'x-credential-id',
+  'x-tenant-id',      // ← add your header here
+] as const,</pre>
+                </div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-badge">2</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.headers.step.2">Add the same header name to <code>headersToForward</code> in <code>src/modules/proxy/services/proxy-request-handler.service.ts</code>. This tells the proxy to actually pass the header through to your backend. Without this, the gateway receives the header from the browser but silently drops it before proxying.</p>
+                <div class="code-block mt-8">
+                  <div class="code-header">
+                    <span class="code-lang"><span class="dot"></span>src/modules/proxy/services/proxy-request-handler.service.ts</span>
+                    <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                  </div>
+                  <pre>const headersToForward = [
+  'x-user-id',
+  'x-user-email',
+  'x-user-roles',
+  'x-credential-id',
+  'x-tenant-id',      // ← add your header here too
+  'authorization',
+];</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap mt-16">
+            <table>
+              <thead><tr><th data-i18n="gw.headers.th.missing">If you only do step…</th><th data-i18n="gw.headers.th.symptom">Symptom</th></tr></thead>
+              <tbody>
+                <tr><td data-i18n="gw.headers.row1.step">Step 1 only (CORS, not forwarding)</td><td data-i18n="gw.headers.row1.symptom">Browser preflight passes, but your backend receives the request without the custom header — as if it was never sent.</td></tr>
+                <tr><td data-i18n="gw.headers.row2.step">Step 2 only (forwarding, not CORS)</td><td data-i18n="gw.headers.row2.symptom">Browser preflight is blocked — <em>"Request header field x-tenant-id is not allowed by Access-Control-Allow-Headers in preflight response"</em>. Request never reaches the server.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="info-box info mt-16">
+            <span class="icon-box"><i data-lucide="info"></i></span>
+            <p data-i18n="gw.headers.ws.note">Note: the WebSocket upgrade path has its own header-building logic. Custom headers added to <code>headersToForward</code> are forwarded for HTTP requests only. For WebSocket connections, only JWT-derived headers (<code>x-user-id</code>, <code>x-user-email</code>, <code>x-user-roles</code>, <code>x-credential-id</code>) are forwarded by the upgrade service.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.cors.origin.title">Deployed Frontend Origins — CORS Allow-List</div>
+          <p data-i18n="gw.cors.origin.desc">The gateway reads allowed frontend origins from <strong>two sources</strong> that are merged at startup. Deployed environment URLs should go in the environment variable — not in the source code — so they can be configured per environment without a code change.</p>
+          <div class="grid-2 mt-16">
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="gw.cors.origin.code.title">In source code</div>
+              <p style="font-size:.875rem;" data-i18n="gw.cors.origin.code.desc"><code>DEFAULT_ORIGIN</code> in <code>security.constants.ts</code> — for localhost dev URLs that are always needed. Do not add deployed URLs here.</p>
+            </div>
+            <div class="card-sm">
+              <div style="font-size:.75rem;font-weight:700;color:var(--brand);margin-bottom:8px;" data-i18n="gw.cors.origin.env.title">Via environment variable</div>
+              <p style="font-size:.875rem;" data-i18n="gw.cors.origin.env.desc"><code>CORS_ORIGIN</code> env var on the deployed gateway — comma-separated list of allowed origins. Add each new deployed frontend URL here.</p>
+            </div>
+          </div>
+          <div class="code-block mt-16">
+            <div class="code-header">
+              <span class="code-lang"><span class="dot"></span>Gateway .env — staging example</span>
+              <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+            </div>
+            <pre>CORS_ORIGIN=https://dashboard-stg.sem-a.com,https://order-stg.sem-a.com,https://univers-bulk-stg.sem-a.com</pre>
+          </div>
+          <div class="info-box info mt-12">
+            <span class="icon-box"><i data-lucide="info"></i></span>
+            <p data-i18n="gw.cors.origin.note">If a new deployed frontend's requests are being blocked with <em>"CORS origin not allowed"</em> (403), add its URL to <code>CORS_ORIGIN</code> on the deployed gateway and restart. No code change or redeployment of the gateway code is needed.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.websocket.title">WebSocket &amp; Socket.io Routing</div>
+          <p data-i18n="gw.websocket.desc">The gateway automatically handles WebSocket upgrade requests using the same <code>routes.yml</code> entries — no extra configuration is needed beyond registering the route. The <code>WebSocketUpgradeService</code> intercepts HTTP Upgrade requests before they reach NestJS and proxies them to the correct backend.</p>
+          <div class="step-list mt-16">
+            <div class="step-item">
+              <div class="step-badge">1</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.websocket.step.1">Your backend exposes a Socket.io server (e.g. NestJS <code>@WebSocketGateway()</code> with a namespace). No special gateway configuration needed — the route entry in <code>routes.yml</code> covers both HTTP and WebSocket.</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-badge">2</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.websocket.step.2">The frontend connects with the gateway's base URL as the Socket.io server, specifying the service path:</p>
+                <div class="code-block mt-8">
+                  <div class="code-header">
+                    <span class="code-lang"><span class="dot"></span>Frontend — Socket.io connection</span>
+                    <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                  </div>
+                  <pre>import { io } from 'socket.io-client';
+
+const socket = io(SSO_BASE_URL, {
+  path: '/api/my-service/socket.io',   // SERVICE_ID in the path
+  auth: { token: accessToken },        // JWT for authentication
+  transports: ['websocket'],
+});</pre>
+                </div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-badge">3</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.websocket.step.3">The gateway authenticates the upgrade using either the Bearer token in the <code>Authorization</code> header, or the signed session cookie. It then forwards these headers to your backend:</p>
+                <div class="env-list mt-8">
+                  <div class="env-item"><span class="env-key">x-user-id</span><span class="env-val">resolved from JWT or session</span></div>
+                  <div class="env-item"><span class="env-key">x-user-email</span><span class="env-val">resolved from JWT or session</span></div>
+                  <div class="env-item"><span class="env-key">x-user-roles</span><span class="env-val">resolved from JWT or session</span></div>
+                  <div class="env-item"><span class="env-key">x-credential-id</span><span class="env-val">resolved from JWT or session</span></div>
+                  <div class="env-item"><span class="env-key">x-gateway-signature</span><span class="env-val">HMAC — your backend must verify this</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="info-box warn mt-16">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="gw.websocket.warn">Custom headers added to <code>headersToForward</code> (for HTTP proxying) are <strong>not</strong> forwarded for WebSocket connections. The WebSocket upgrade path uses its own header builder. If your Socket.io backend needs tenant context, pass it via the token payload or the Socket.io <code>auth</code> / <code>query</code> fields instead.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="card.gw.public.title">Public Endpoints — Bypassing Auth (Webhooks)</div>
+          <p data-i18n="gw.public.desc">Some backend endpoints must be reachable by external services (Meta, payment providers, monitoring systems) without a gateway JWT. Two independent bypass mechanisms must both be configured.</p>
+          <div class="step-list mt-16">
+            <div class="step-item">
+              <div class="step-badge">1</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.public.step.1">In your NestJS backend, decorate the controller method with <code>@Public()</code>. This tells the <code>JwtAuthGuard</code> to skip JWT validation for that route.</p>
+                <div class="code-block mt-8">
+                  <div class="code-header">
+                    <span class="code-lang"><span class="dot"></span>your-service/src/modules/webhooks/webhook.controller.ts</span>
+                    <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                  </div>
+                  <pre>@Public()
+@Post('webhooks/meta/status')
+async handleMetaWebhook(@Body() body: MetaWebhookDto) { ... }</pre>
+                </div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-badge">2</div>
+              <div class="step-body">
+                <p class="step-desc" data-i18n="gw.public.step.2">Also exclude the path from <code>GatewayAuthMiddleware</code> in your backend's <code>app.module.ts</code>. This middleware runs before guards and validates the HMAC gateway signature — external callers (Meta, payment APIs) never send this signature, so they would be blocked at that layer even if the JWT guard is skipped.</p>
+                <div class="code-block mt-8">
+                  <div class="code-header">
+                    <span class="code-lang"><span class="dot"></span>your-service/src/app.module.ts</span>
+                    <button class="copy-btn"><i data-lucide="copy"></i><span>Copy</span></button>
+                  </div>
+                  <pre>consumer
+  .apply(GatewayAuthMiddleware)
+  .exclude(
+    { path: 'credits/webhook', method: RequestMethod.POST },
+    { path: 'webhooks/meta/status', method: RequestMethod.POST },
+  )
+  .forRoutes('*');</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="info-box warn mt-16">
+            <span class="icon-box"><i data-lucide="alert-triangle"></i></span>
+            <p data-i18n="gw.public.warn">Do not rely on <code>@Public()</code> alone for external webhooks. If the path is not excluded from <code>GatewayAuthMiddleware</code>, the middleware returns <code>401 Unauthorized</code> before the guard is even reached, because there is no valid HMAC signature on the inbound request from Meta or a payment provider.</p>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-title" data-i18n="card.gw.session.title">Session Storage</div>
           <p data-i18n="gw.session.desc">The gateway uses <strong>Redis</strong> for two purposes:</p>
           <div class="grid-2 mt-16">
